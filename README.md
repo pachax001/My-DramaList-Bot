@@ -46,5 +46,5 @@ users - To see the ids od authorized users.
 |<img width="80" src="https://avatars.githubusercontent.com/u/37932956">|<img width="80" src="https://avatars.githubusercontent.com/u/34474300">|
 
 |[`Joshue Abance`](https://github.com/tbdsux)|[`Pyrogram`](https://github.com/pyrogram)|
-|Creator of MDL API|Telegram Bot Framework|
+<br>|Creator of MDL API|Telegram Bot Framework|</br>
 
