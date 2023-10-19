@@ -183,48 +183,40 @@ async def users_command(client, message):
 @app.on_message()
 async def handle_drama_link(client, message):
     try:
-
         if message.from_user.id in authorized_users or message.from_user.id == OWNER_ID:
             drama_link = message.text
             mydramalist_regex = r"https://mydramalist.com/\d+-\S+"
             if re.match(mydramalist_regex, drama_link):
-
                 slug = drama_link.split("/")[-1]
-
                 api_url = f"https://kuryana.vercel.app/id/{slug}"
                 response = requests.get(api_url)
-
                 data = response.json()
 
                 title = data["data"]["title"]
-                complete_title = data["data"]["complete_title"]
-                native_title = data["data"]["others"]["native_title"][0]
-                also_known_as_list = data["data"]["others"]["also_known_as"]
-                also_known_as = (
-                    ", ".join(also_known_as_list) if also_known_as_list else "N/A"
-                )
-                rating = data["data"]["rating"]
-                country = data["data"]["details"]["country"]
-                episodes = data["data"]["details"]["episodes"]
-                aired_date = data["data"]["details"]["aired"]
-                aired_on = data["data"]["details"]["aired_on"]
-                original_network = data["data"]["details"]["original_network"]
-                duration = data["data"]["details"]["duration"]
-                content_rating = data["data"]["details"]["content_rating"]
+                complete_title = data["data"].get("complete_title", "N/A")
+                native_title = data["data"]["others"].get("native_title", ["N/A"])[0]
+                also_known_as_list = data["data"]["others"].get("also_known_as", [])
+                also_known_as = ", ".join(also_known_as_list) if also_known_as_list else "N/A"
+                rating = data["data"].get("rating", "N/A")
+                country = data["data"]["details"].get("country", "N/A")
+                episodes = data["data"]["details"].get("episodes", "N/A")
+                aired_date = data["data"]["details"].get("aired", "N/A")
+                aired_on = data["data"]["details"].get("aired_on", "N/A")
+                original_network = data["data"]["details"].get("original_network", "N/A")
+                duration = data["data"]["details"].get("duration", "N/A")
+                content_rating = data["data"]["details"].get("content_rating", "N/A")
                 genres = ", ".join(
                     f"{GENRE_EMOJI.get(genre, '')} #{genre}"
-                    for genre in data["data"]["others"]["genres"]
+                    for genre in data["data"]["others"].get("genres", [])
                 )
-                tags_list = data["data"]["others"]["tags"]
-
+                tags_list = data["data"]["others"].get("tags", [])
                 if tags_list and tags_list[-1].endswith("(Vote or add tags)"):
                     last_tag = tags_list[-1].replace("(Vote or add tags)", "").strip()
                     filtered_tags = tags_list[:-1] + [last_tag]
                 else:
                     filtered_tags = tags_list
-
                 tags = ", ".join(filtered_tags)
-                storyline = data["data"]["synopsis"]
+                storyline = data["data"].get("synopsis", "N/A")
 
                 caption = f"<b>{title}</b>\n"
                 caption += f"<i>{complete_title}</i>\n"
@@ -257,6 +249,5 @@ async def handle_drama_link(client, message):
         await message.reply_text(
             "An error occurred while processing your request. Please try again later."
         )
-
 
 app.run()
