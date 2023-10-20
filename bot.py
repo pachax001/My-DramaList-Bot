@@ -1,20 +1,66 @@
 from pyrogram import Client, filters
-import requests
 import html
 import logging
 import re
 import os
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import requests
+from logging.handlers import RotatingFileHandler
 
 logging.basicConfig(
     filename="bot.log",
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-# Fill these variables
-API_ID = ""
-API_HASH = ""
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+console_handler.setFormatter(console_formatter)
+logging.getLogger().addHandler(console_handler)
+
+
+file_handler = RotatingFileHandler("bot.log", maxBytes=5 * 1024 * 1024, backupCount=2)
+file_handler.setLevel(logging.INFO)
+file_formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+file_handler.setFormatter(file_formatter)
+logging.getLogger().addHandler(file_handler)
+
+
+logging.getLogger().setLevel(logging.INFO)
+
+
 BOT_TOKEN = ""
 OWNER_ID = 
+
+API_ID = ""
+API_HASH = ""
+API_URL = "https://kuryana.vercel.app/search/q/{}"
+DETAILS_API_URL = "https://kuryana.vercel.app/id/{}"
+
+
+def filter_dramas(query):
+    response = requests.get(API_URL.format(query))
+    if response.status_code == 200:
+        data = response.json()
+        dramas = data.get("results", {}).get("dramas", [])
+        return dramas
+    else:
+        return []
+
+
+def get_drama_details(slug):
+    response = requests.get(DETAILS_API_URL.format(slug))
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("data", {})
+    else:
+        return None
+
 
 GENRE_EMOJI = {
     "Action": "🚀",
@@ -73,7 +119,7 @@ async def start_command(client, message):
     user_id = message.from_user.id
     if user_id in authorized_users or user_id == OWNER_ID:
         await message.reply_text(
-            "Hi! I can extract details from MyDramalist. Please send the MyDramalist URL."
+            "Hi! I can extract details from mydramalist URL or from a search query. For url send /url {mydramalistURL}. For Query send /query {search query}"
         )
     else:
         await message.reply_text("You are not authorized to use this bot.")
@@ -180,11 +226,140 @@ async def users_command(client, message):
         await message.reply_text(f"An error occurred: {e}")
 
 
-@app.on_message()
+@app.on_message(filters.command("query", prefixes="/"))
+async def query_dramas(bot, message):
+    try:
+        if message.from_user.id in authorized_users or message.from_user.id == OWNER_ID:
+            query = message.text.split(" ", 1)[1]
+            dramas = filter_dramas(query)
+
+            if dramas:
+                keyboard = []
+                for drama in dramas:
+                    keyboard.append(
+                        [
+                            InlineKeyboardButton(
+                                drama["title"], callback_data=f"details_{drama['slug']}"
+                            )
+                        ]
+                    )
+                keyboard.append(
+                    [InlineKeyboardButton("🚫Close", callback_data="close_search")]
+                )
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await app.send_message(
+                    chat_id=message.chat.id,
+                    text="Here are the search results. Click on a drama for more info.",
+                    reply_markup=reply_markup,
+                )
+            else:
+                await app.send_message(
+                    chat_id=message.chat.id, text="No dramas found with that query."
+                )
+        else:
+            await app.send_message(
+                chat_id=message.chat.id, text="Not an authorized user."
+            )
+    except Exception as e:
+        logging.error(f"Error processing message: {e}")
+        await message.reply_text(
+            "An error occurred while processing your request. Please try again later."
+        )
+
+
+@app.on_callback_query(filters.regex(r"^details_"))
+async def drama_details(bot, update):
+    try:
+        query = update.data.split("_")[1]
+        search_results_message = update.message.reply_to_message
+
+        drama_details = get_drama_details(query)
+
+        if drama_details:
+            poster = drama_details.get("poster", None)
+            title = drama_details.get("title", "N/A")
+            complete_title = drama_details.get("complete_title", "N/A")
+            native_title = drama_details["others"].get("native_title", "N/A")
+            also_known_as_list = drama_details["others"].get("also_known_as", [])
+            also_known_as = (
+                ", ".join(also_known_as_list) if also_known_as_list else "N/A"
+            )
+            rating = drama_details.get("rating", "N/A")
+            country = drama_details["details"].get("country", "N/A")
+            episodes = drama_details["details"].get("episodes", "N/A")
+            aired_date = drama_details["details"].get("aired", "N/A")
+            aired_on = drama_details["details"].get("aired_on", "N/A")
+            original_network = drama_details["details"].get("original_network", "N/A")
+            duration = drama_details["details"].get("duration", "N/A")
+            content_rating = drama_details["details"].get("content_rating", "N/A")
+            genres = ", ".join(
+                f"{GENRE_EMOJI.get(genre, '')} #{genre}"
+                for genre in drama_details["others"].get("genres", [])
+            )
+            tags_list = drama_details["others"].get("tags", [])
+            if tags_list and tags_list[-1].endswith("(Vote or add tags)"):
+                last_tag = tags_list[-1].replace("(Vote or add tags)", "").strip()
+                filtered_tags = tags_list[:-1] + [last_tag]
+            else:
+                filtered_tags = tags_list
+            tags = ", ".join(filtered_tags)
+            storyline = drama_details.get("synopsis", "N/A")
+            drama_link_url = f"https://mydramalist.com/{query}"
+            storyline = html.escape(storyline)
+
+            caption = f"<b>{title}</b>\n"
+            caption += f"<i>{complete_title}</i>\n"
+            caption += f"<b>Native Title:</b> {native_title}\n"
+            caption += f"<b>Also Known As:</b> {also_known_as}\n"
+            caption += f"<b>Rating ⭐️:</b> {rating}\n"
+            caption += f"<b>Country:</b> {country}\n"
+            caption += f"<b>Episodes:</b> {episodes}\n"
+            caption += f"<b>Aired Date:</b> {aired_date}\n"
+            caption += f"<b>Aired On:</b> {aired_on}\n"
+            caption += f"<b>Original Network:</b> {original_network}\n"
+            caption += f"<b>Duration:</b> {duration}\n"
+            caption += f"<b>Content Rating:</b> {content_rating}\n"
+            caption += f"<b>Genres:</b> {genres}\n"
+            caption += f"<b>Tags:</b> {tags}\n"
+            see_more_text = f"<a href='{drama_link_url}'>See more...</a>"
+            caption += f"<b>Storyline:</b> {storyline[:100]}{'... '}\n{see_more_text}"
+
+            if poster:
+                await bot.send_photo(
+                    chat_id=update.message.chat.id, photo=poster, caption=caption
+                )
+            else:
+                await bot.send_message(chat_id=update.message.chat.id, text=caption)
+            if search_results_message:
+                await search_results_message.delete()
+
+            await update.message.delete()
+        else:
+            await bot.send_message(
+                chat_id=update.message.chat.id, text="Failed to fetch drama details."
+            )
+    except Exception as e:
+        logging.error(f"Error processing message: {e}")
+        await bot.send_message(
+            chat_id=update.message.chat.id,
+            text="An error occurred while processing your request. Please try again later.",
+        )
+
+
+@app.on_callback_query(filters.regex(r"^close_search$"))
+async def close_search_results(bot, query):
+    try:
+        await query.answer()
+        await query.message.delete()
+    except Exception as e:
+        logging.error(f"Error closing search results: {e}")
+
+
+@app.on_message(filters.command("url", prefixes="/"))
 async def handle_drama_link(client, message):
     try:
         if message.from_user.id in authorized_users or message.from_user.id == OWNER_ID:
-            drama_link = message.text
+            drama_link = message.text.split(" ", 1)[1]
             mydramalist_regex = r"https://mydramalist.com/\d+-\S+"
             if re.match(mydramalist_regex, drama_link):
                 slug = drama_link.split("/")[-1]
@@ -196,13 +371,17 @@ async def handle_drama_link(client, message):
                 complete_title = data["data"].get("complete_title", "N/A")
                 native_title = data["data"]["others"].get("native_title", ["N/A"])[0]
                 also_known_as_list = data["data"]["others"].get("also_known_as", [])
-                also_known_as = ", ".join(also_known_as_list) if also_known_as_list else "N/A"
+                also_known_as = (
+                    ", ".join(also_known_as_list) if also_known_as_list else "N/A"
+                )
                 rating = data["data"].get("rating", "N/A")
                 country = data["data"]["details"].get("country", "N/A")
                 episodes = data["data"]["details"].get("episodes", "N/A")
                 aired_date = data["data"]["details"].get("aired", "N/A")
                 aired_on = data["data"]["details"].get("aired_on", "N/A")
-                original_network = data["data"]["details"].get("original_network", "N/A")
+                original_network = data["data"]["details"].get(
+                    "original_network", "N/A"
+                )
                 duration = data["data"]["details"].get("duration", "N/A")
                 content_rating = data["data"]["details"].get("content_rating", "N/A")
                 genres = ", ".join(
@@ -249,5 +428,6 @@ async def handle_drama_link(client, message):
         await message.reply_text(
             "An error occurred while processing your request. Please try again later."
         )
+
 
 app.run()
