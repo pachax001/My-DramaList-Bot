@@ -1,8 +1,8 @@
 # MyDramaList Bot
 
 
-#### This Bot can extract drama details from  [MyDramaList](https://mydramalist.com/) url.
-#### Send any valid Mydramalist link and the bot gives you the drama details as a post.
+#### This Bot can extract drama details from  [MyDramaList](https://mydramalist.com/) url and with a search query.
+
 
 ## Installation
 ### Prerequisites
@@ -38,6 +38,8 @@ To run the bot even after closing session use [TMUX](https://github.com/tmux/tmu
 ####Set these commands from [@BotFather](https://t.me/BotFather)
 ```
 start - Start the bot
+url - For url search
+query - For query search
 authorize - Authorize new user.
 unauthorize - Unauthorize an exsisting user.
 users - To see the ids od authorized users.
