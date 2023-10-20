@@ -33,12 +33,13 @@ logging.getLogger().addHandler(file_handler)
 
 logging.getLogger().setLevel(logging.INFO)
 
-
+#Fill these variables
 BOT_TOKEN = ""
 OWNER_ID = 
-
 API_ID = ""
 API_HASH = ""
+
+#DO NOT TOUCH THESE
 API_URL = "https://kuryana.vercel.app/search/q/{}"
 DETAILS_API_URL = "https://kuryana.vercel.app/id/{}"
 
@@ -239,7 +240,8 @@ async def query_dramas(bot, message):
                     keyboard.append(
                         [
                             InlineKeyboardButton(
-                                drama["title"], callback_data=f"details_{drama['slug']}"
+                                f"{drama['title']} ({drama['year']})",
+                                callback_data=f"details_{drama['slug']}",
                             )
                         ]
                     )
