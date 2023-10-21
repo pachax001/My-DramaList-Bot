@@ -295,7 +295,7 @@ async def drama_details(bot, update):
             duration = drama_details["details"].get("duration", "N/A")
             content_rating = drama_details["details"].get("content_rating", "N/A")
             genres = ", ".join(
-                f"{GENRE_EMOJI.get(genre, '')} #{genre}"
+                f"{GENRE_EMOJI.get(genre, '')} #{genre}".replace("-","_")
                 for genre in drama_details["others"].get("genres", [])
             )
             tags_list = drama_details["others"].get("tags", [])
@@ -387,7 +387,7 @@ async def handle_drama_link(client, message):
                 duration = data["data"]["details"].get("duration", "N/A")
                 content_rating = data["data"]["details"].get("content_rating", "N/A")
                 genres = ", ".join(
-                    f"{GENRE_EMOJI.get(genre, '')} #{genre}"
+                    f"{GENRE_EMOJI.get(genre, '')} #{genre}".replace("-","_")
                     for genre in data["data"]["others"].get("genres", [])
                 )
                 tags_list = data["data"]["others"].get("tags", [])
