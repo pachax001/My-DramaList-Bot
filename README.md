@@ -2,7 +2,7 @@
 
 
 #### This Bot can extract drama details from  [MyDramaList](https://mydramalist.com/) url and with a search query.
-
+#### This branch for public users. Meaning anyone can use the bot.
 
 ## Installation
 ### Prerequisites
@@ -39,10 +39,7 @@ To run the bot even after closing session use [TMUX](https://github.com/tmux/tmu
 ```
 start - Start the bot
 url - For url search
-query - For query search
-authorize - Authorize new user.
-unauthorize - Unauthorize an exsisting user.
-users - To see the ids od authorized users.
+s - For query search
 log - Get log file
 ```
 ## 🏅 **Credits**
