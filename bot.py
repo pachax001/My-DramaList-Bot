@@ -23,7 +23,7 @@ console_handler.setFormatter(console_formatter)
 logging.getLogger().addHandler(console_handler)
 
 log_file_path = "botlog.txt"
-file_handler = RotatingFileHandler("bot.log", maxBytes=5 * 1024 * 1024, backupCount=2)
+file_handler = RotatingFileHandler("botlog.txt", maxBytes=5 * 1024 * 1024, backupCount=2)
 file_handler.setLevel(logging.INFO)
 file_formatter = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
