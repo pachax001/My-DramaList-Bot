@@ -39,7 +39,7 @@ To run the bot even after closing session use [TMUX](https://github.com/tmux/tmu
 ```
 start - Start the bot
 url - For url search
-query - For query search
+s - For query search
 authorize - Authorize new user.
 unauthorize - Unauthorize an exsisting user.
 users - To see the ids od authorized users.
