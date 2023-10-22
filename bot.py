@@ -35,11 +35,11 @@ logging.getLogger().addHandler(file_handler)
 logging.getLogger().setLevel(logging.INFO)
 
 
-BOT_TOKEN = "6635179306:AAEzwMCUuFaffjl8NchPmm3LBAPbMm9DG_A"
-OWNER_ID = 1940436756
+BOT_TOKEN = ""
+OWNER_ID = 
 
-API_ID = "16009913"
-API_HASH = "f6a239b37d81c803947bbaf41655350e"
+API_ID = ""
+API_HASH = ""
 API_URL = "https://kuryana.vercel.app/search/q/{}"
 DETAILS_API_URL = "https://kuryana.vercel.app/id/{}"
 
