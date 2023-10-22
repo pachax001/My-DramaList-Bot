@@ -7,8 +7,9 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import requests
 from logging.handlers import RotatingFileHandler
 
+
 logging.basicConfig(
-    filename="bot.log",
+    filename="botlog.txt",
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
@@ -21,7 +22,7 @@ console_formatter = logging.Formatter(
 console_handler.setFormatter(console_formatter)
 logging.getLogger().addHandler(console_handler)
 
-
+log_file_path = "botlog.txt"
 file_handler = RotatingFileHandler("bot.log", maxBytes=5 * 1024 * 1024, backupCount=2)
 file_handler.setLevel(logging.INFO)
 file_formatter = logging.Formatter(
@@ -33,13 +34,12 @@ logging.getLogger().addHandler(file_handler)
 
 logging.getLogger().setLevel(logging.INFO)
 
-#Fill these variables
-BOT_TOKEN = ""
-OWNER_ID = 
-API_ID = ""
-API_HASH = ""
 
-#DO NOT TOUCH THESE
+BOT_TOKEN = "6635179306:AAEzwMCUuFaffjl8NchPmm3LBAPbMm9DG_A"
+OWNER_ID = 1940436756
+
+API_ID = "16009913"
+API_HASH = "f6a239b37d81c803947bbaf41655350e"
 API_URL = "https://kuryana.vercel.app/search/q/{}"
 DETAILS_API_URL = "https://kuryana.vercel.app/id/{}"
 
@@ -120,10 +120,11 @@ async def start_command(client, message):
     user_id = message.from_user.id
     if user_id in authorized_users or user_id == OWNER_ID:
         await message.reply_text(
-            "Hi! I can extract details from mydramalist URL or from a search query. For url send /url {mydramalistURL}. For Query send /query {search query}"
+            "Hi! I can extract details from mydramalist URL or from a search query. For url send /url {mydramalistURL}. For Query send /s {search query}"
         )
     else:
         await message.reply_text("You are not authorized to use this bot.")
+        logging.info(f"User {user_id} trying to start the bot")
 
 
 @app.on_message(filters.command("authorize", prefixes="/") & ~filters.user(OWNER_ID))
@@ -227,21 +228,24 @@ async def users_command(client, message):
         await message.reply_text(f"An error occurred: {e}")
 
 
-@app.on_message(filters.command("query", prefixes="/"))
+@app.on_message(filters.command("s", prefixes="/"))
 async def query_dramas(bot, message):
     try:
+        user_id = message.from_user.id
         if message.from_user.id in authorized_users or message.from_user.id == OWNER_ID:
             query = message.text.split(" ", 1)[1]
             dramas = filter_dramas(query)
-
+            logging.info(f"User {user_id} search query : {query}")
             if dramas:
                 keyboard = []
                 for drama in dramas:
+
+                    callback_data = f"details_{drama['slug']}"
                     keyboard.append(
                         [
                             InlineKeyboardButton(
                                 f"{drama['title']} ({drama['year']})",
-                                callback_data=f"details_{drama['slug']}",
+                                callback_data=callback_data,
                             )
                         ]
                     )
@@ -272,9 +276,12 @@ async def query_dramas(bot, message):
 @app.on_callback_query(filters.regex(r"^details_"))
 async def drama_details(bot, update):
     try:
+        user_id = update.from_user.id
         query = update.data.split("_")[1]
         search_results_message = update.message.reply_to_message
-
+        logging.info(
+            f"User {user_id} requested details for drama with link: https://mydramalist.com/{query}"
+        )
         drama_details = get_drama_details(query)
 
         if drama_details:
@@ -295,7 +302,7 @@ async def drama_details(bot, update):
             duration = drama_details["details"].get("duration", "N/A")
             content_rating = drama_details["details"].get("content_rating", "N/A")
             genres = ", ".join(
-                f"{GENRE_EMOJI.get(genre, '')} #{genre}".replace("-","_")
+                f"{GENRE_EMOJI.get(genre, '')} #{genre}".replace("-", "_")
                 for genre in drama_details["others"].get("genres", [])
             )
             tags_list = drama_details["others"].get("tags", [])
@@ -327,11 +334,27 @@ async def drama_details(bot, update):
             caption += f"<b>Storyline:</b> {storyline[:100]}{'... '}\n{see_more_text}"
 
             if poster:
+                keyboard = [
+                    [InlineKeyboardButton("🚫Close", callback_data="close_search")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
                 await bot.send_photo(
-                    chat_id=update.message.chat.id, photo=poster, caption=caption
+                    chat_id=update.message.chat.id,
+                    photo=poster,
+                    caption=caption,
+                    reply_markup=reply_markup,
                 )
+
             else:
-                await bot.send_message(chat_id=update.message.chat.id, text=caption)
+                keyboard = [
+                    [InlineKeyboardButton("🚫Close", callback_data="close_search")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await bot.send_message(
+                    chat_id=update.message.chat.id,
+                    text=caption,
+                    reply_markup=reply_markup,
+                )
             if search_results_message:
                 await search_results_message.delete()
 
@@ -360,8 +383,12 @@ async def close_search_results(bot, query):
 @app.on_message(filters.command("url", prefixes="/"))
 async def handle_drama_link(client, message):
     try:
+        user_id = message.from_user.id
         if message.from_user.id in authorized_users or message.from_user.id == OWNER_ID:
             drama_link = message.text.split(" ", 1)[1]
+            logging.info(
+                f"User {user_id} requested drama details for URL: {drama_link}"
+            )
             mydramalist_regex = r"https://mydramalist.com/\d+-\S+"
             if re.match(mydramalist_regex, drama_link):
                 slug = drama_link.split("/")[-1]
@@ -387,7 +414,7 @@ async def handle_drama_link(client, message):
                 duration = data["data"]["details"].get("duration", "N/A")
                 content_rating = data["data"]["details"].get("content_rating", "N/A")
                 genres = ", ".join(
-                    f"{GENRE_EMOJI.get(genre, '')} #{genre}".replace("-","_")
+                    f"{GENRE_EMOJI.get(genre, '')} #{genre}".replace("-", "_")
                     for genre in data["data"]["others"].get("genres", [])
                 )
                 tags_list = data["data"]["others"].get("tags", [])
@@ -420,8 +447,15 @@ async def handle_drama_link(client, message):
                 caption += (
                     f"<b>Storyline:</b> {storyline[:100]}{'... '}\n{see_more_text}"
                 )
-
-                await message.reply_photo(photo=data["data"]["poster"], caption=caption)
+                keyboard = [
+                    [InlineKeyboardButton("🚫Close", callback_data="close_search")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await message.reply_photo(
+                    photo=data["data"]["poster"],
+                    caption=caption,
+                    reply_markup=reply_markup,
+                )
             else:
                 await message.reply_text("Invalid URL.")
 
@@ -432,4 +466,29 @@ async def handle_drama_link(client, message):
         )
 
 
-app.run()
+@app.on_message(filters.command("log", prefixes="/"))
+async def send_log(client, message):
+    try:
+        user_id = message.from_user.id
+        if user_id == OWNER_ID:
+
+            chat_id = message.chat.id
+            log_file_path = os.path.join(os.path.dirname(__file__), "botlog.txt")
+            await app.send_document(chat_id, document=log_file_path)
+        else:
+            await message.reply_text("Only Owner can use this command")
+            logging.info(f"User {user_id} trying to access the log")
+    except Exception as e:
+        logging.error(f"Error processing log file: {e}")
+        await message.reply_text("An error occured while processsing the log file.")
+
+
+if __name__ == "__main__":
+    try:
+        if os.path.exists(log_file_path):
+            logging.shutdown()
+            os.remove(log_file_path)
+    except Exception as e:
+        print(f"Error occurred while deleting log file: {e}")
+
+    app.run()
