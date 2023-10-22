@@ -43,6 +43,7 @@ query - For query search
 authorize - Authorize new user.
 unauthorize - Unauthorize an exsisting user.
 users - To see the ids od authorized users.
+log - Get log file
 ```
 ## 🏅 **Credits**
 |<img width="80" src="https://avatars.githubusercontent.com/u/37932956">|<img width="80" src="https://avatars.githubusercontent.com/u/34474300">|
