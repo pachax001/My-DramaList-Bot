@@ -1,7 +1,7 @@
 # MyDramaList Bot
 
 
-#### This Bot can extract drama details from  [MyDramaList](https://mydramalist.com/) url and with a search query.
+#### This Bot can extract drama details from  [MyDramaList](https://mydramalist.com/) url and with a search query and in inline mode.
 
 
 ## Installation
