@@ -3,10 +3,13 @@ import html
 import logging
 import re
 import os
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineQuery, InputTextMessageContent, InlineQueryResultArticle, InlineKeyboardMarkup, InlineKeyboardButton, InlineQueryResultPhoto
 import requests
 from logging.handlers import RotatingFileHandler
-
+import logging
+from urllib.parse import quote
+from pyrogram.types import CallbackQuery
+import time
 
 logging.basicConfig(
     filename="botlog.txt",
@@ -42,7 +45,6 @@ API_ID = ""
 API_HASH = ""
 API_URL = "https://kuryana.vercel.app/search/q/{}"
 DETAILS_API_URL = "https://kuryana.vercel.app/id/{}"
-
 
 def filter_dramas(query):
     response = requests.get(API_URL.format(query))
@@ -119,8 +121,16 @@ app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 async def start_command(client, message):
     user_id = message.from_user.id
     if user_id in authorized_users or user_id == OWNER_ID:
+        # Create an inline keyboard with a button to start an inline query
+        inline_keyboard = [
+            [InlineKeyboardButton("Search Inline", switch_inline_query_current_chat=f"")]
+        ]
+        reply_markup = InlineKeyboardMarkup(inline_keyboard)
+
+        # Send the start message with the inline keyboard
         await message.reply_text(
-            "Hi! I can extract details from mydramalist URL or from a search query. For url send /url {mydramalistURL}. For Query send /s {search query}"
+            "Hi! I can extract details from mydramalist URL or from a search query. For URL send /url {mydramalistURL}. For Query send /s {search query}. Also I can search in inline mode.",
+            reply_markup=reply_markup,
         )
     else:
         await message.reply_text("You are not authorized to use this bot.")
@@ -226,6 +236,153 @@ async def users_command(client, message):
     except Exception as e:
 
         await message.reply_text(f"An error occurred: {e}")
+
+
+from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent
+
+# ...
+
+@app.on_inline_query()
+async def query_dramas(bot, inline_query):
+    try:
+        query = inline_query.query.strip()
+
+        # Check if the query is empty or less than a certain length
+        if not query or len(query) < 2:
+            # If the query is too short, show a suggestion message
+            results = [InlineQueryResultArticle(
+                title="Enter a keyword...",
+                input_message_content=InputTextMessageContent("Enter a keyword to search for dramas.")
+            )]
+        else:
+            # Query is long enough, proceed with searching dramas
+            dramas = filter_dramas(query)
+
+            # Check if there are no matching dramas
+            if not dramas:
+                results = [InlineQueryResultArticle(
+                    title="No matching dramas found",
+                    id=0,
+                    description="Try a different query.",
+                    input_message_content=InputTextMessageContent("No matching dramas found.")
+                )]
+            else:
+                results = []
+                for index, drama in enumerate(dramas):
+                    keyboard = [
+                        [InlineKeyboardButton("View Details", url=f"https://t.me/{app.me.username}")]
+                    ]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+
+                    title = f"{drama['title']} ({drama['year']})"
+                    description = f"Type: {drama.get('type', 'N/A')}, Episodes: {drama.get('series', 'N/A')}"
+                    poster = drama['thumb']
+                    slug = drama['slug']
+                    drama_link = f"https://mydramalist.com/{slug}"
+                    message_content = InputTextMessageContent(f"{title}\n\n{drama_link}")
+                    result = InlineQueryResultArticle(
+                        title=title,
+                        id=slug,
+                        description=description,
+                        thumb_url=poster,
+                        input_message_content=message_content,
+                        reply_markup=reply_markup,
+                    )
+                    results.append(result)
+
+        await inline_query.answer(results)
+
+    except Exception as e:
+        logging.error(f"Error processing inline query: {e}")
+
+
+@app.on_chosen_inline_result()
+async def handle_drama_link(bot, chosen_inline_result):
+    try:
+        user_id = chosen_inline_result.from_user.id
+        
+        #if message.from_user.id in authorized_users or message.from_user.id == OWNER_ID:
+        slug = chosen_inline_result.result_id
+        print(slug)
+        print(f"User with id {user_id} requested for slug {slug}") 
+        #slug = result[len('Input_'):].strip()
+
+
+        
+
+           
+        api_url = f"https://kuryana.vercel.app/id/{slug}"
+        response = requests.get(api_url)
+        data = response.json()
+        drama_link = f"https://mydramalist.com/{slug}"
+        title = data["data"]["title"]
+        complete_title = data["data"].get("complete_title", "N/A")
+        native_title = data["data"]["others"].get("native_title", ["N/A"])[0]
+        also_known_as_list = data["data"]["others"].get("also_known_as", [])
+        also_known_as = (
+            ", ".join(also_known_as_list) if also_known_as_list else "N/A"
+        )
+        rating = data["data"].get("rating", "N/A")
+        country = data["data"]["details"].get("country", "N/A")
+        episodes = data["data"]["details"].get("episodes", "N/A")
+        aired_date = data["data"]["details"].get("aired", "N/A")
+        aired_on = data["data"]["details"].get("aired_on", "N/A")
+        original_network = data["data"]["details"].get(
+            "original_network", "N/A"
+        )
+        duration = data["data"]["details"].get("duration", "N/A")
+        content_rating = data["data"]["details"].get("content_rating", "N/A")
+        genres = ", ".join(
+            f"{GENRE_EMOJI.get(genre, '')} #{genre}".replace("-", "_")
+            for genre in data["data"]["others"].get("genres", [])
+        )
+        tags_list = data["data"]["others"].get("tags", [])
+        if tags_list and tags_list[-1].endswith("(Vote or add tags)"):
+            last_tag = tags_list[-1].replace("(Vote or add tags)", "").strip()
+            filtered_tags = tags_list[:-1] + [last_tag]
+        else:
+            filtered_tags = tags_list
+        tags = ", ".join(filtered_tags)
+        storyline = data["data"].get("synopsis", "N/A")
+
+        caption = f"<b>{title}</b>\n"
+        caption += f"<i>{complete_title}</i>\n"
+        caption += f"<b>Native Title:</b> {native_title}\n"
+        caption += f"<b>Also Known As:</b> {also_known_as}\n"
+        caption += f"<b>Rating ⭐️:</b> {rating}\n"
+        caption += f"<b>Country:</b> {country}\n"
+        caption += f"<b>Episodes:</b> {episodes}\n"
+        caption += f"<b>Aired Date:</b> {aired_date}\n"
+        caption += f"<b>Aired On:</b> {aired_on}\n"
+        caption += f"<b>Original Network:</b> {original_network}\n"
+        caption += f"<b>Duration:</b> {duration}\n"
+        caption += f"<b>Content Rating:</b> {content_rating}\n"
+        caption += f"<b>Genres:</b> {genres}\n"
+        caption += f"<b>Tags:</b> {tags}\n"
+        storyline = html.escape(storyline)
+
+        see_more_text = f"<a href='{drama_link}'>See more...</a>"
+
+        caption += (
+            f"<b>Storyline:</b> {storyline[:100]}{'... '}\n{see_more_text}"
+        )
+        keyboard = [
+            [InlineKeyboardButton("🚫Close", callback_data="close_search")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await bot.send_photo(
+            chat_id=chosen_inline_result.from_user.id,
+            photo=data["data"]["poster"],
+            caption=caption,
+            reply_markup=reply_markup,
+        )
+
+    except Exception as e:
+        logging.error(f"Error processing message: {e}")
+        await bot.send_message(
+            chat_id=chosen_inline_result.from_user.id,
+            text="An error occurred while processing your request. Please try again later."
+        )
 
 
 @app.on_message(filters.command("s", prefixes="/"))
