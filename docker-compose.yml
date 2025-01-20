@@ -1,0 +1,7 @@
+services:
+  mydramalist-bot:
+    build: .
+    container_name: mydramalist-bot
+    restart: unless-stopped  # Ensure bot restarts on server reboot
+    volumes:
+      - .:/app  # Mount the app directory for local development

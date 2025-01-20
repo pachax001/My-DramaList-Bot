@@ -1,0 +1,6 @@
+asyncio
+pyrofork
+tgcrypto
+pymongo
+python-dotenv
+requests

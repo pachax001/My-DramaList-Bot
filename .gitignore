@@ -1,0 +1,17 @@
+# vscode
+.vscode
+
+#config.env
+config.env
+
+#bot session
+mydramalist_bot.session
+
+#log file
+log.txt
+
+# virtualenv
+venv
+
+# python cache
+__pycache__
