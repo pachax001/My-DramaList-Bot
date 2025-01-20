@@ -116,6 +116,27 @@ cp sample_config.env config.env
 docker-compose up --build -d
 ```
 
+### **5. Set Bot Commands**
+
+Use this to paste bot commands in [BotFather](https://t.me/BotFather)
+```
+start - Start the bot
+help - Show help message
+s - Search for a drama
+url - Get drama details from a My Dramalist URL
+authorize - Authorize a new user (Owner Only)
+unauthorize - Unauthorize a user (Owner Only)
+users - List authorized users (Owner Only)
+userstats - Get user stats (Owner Only)
+settemplate - Set custom template
+gettemplate - Get your current template
+removetemplate - Remove your template
+previewtemplate - Preview your template
+log - Get bot logs (Owner Only)
+setpublicmode - Toggle public mode (Owner Only)
+broadcast - Broadcast a message to all users (Owner Only)
+```
+
 ### 🛠 Development Guide
 
 ### **Running Locally Without Docker**
