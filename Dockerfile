@@ -1,38 +1,36 @@
-# Use a minimal Python base image
-FROM python:3.11-slim
+# Use a lightweight Debian base image
+FROM debian:bookworm-slim
 
-# Set environment variables to avoid .pyc files and buffering
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Set the working directory
+WORKDIR /usr/src/app
 
-# Set working directory inside the container
-WORKDIR /app
-
-# Install necessary dependencies to build Pyrogram and other packages
+# Install necessary packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
+    python3 \
+    python3-venv \
+    python3-pip \
+    build-essential \
     python3-dev \
     libffi-dev \
-    build-essential \
+    bash \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only requirements first to leverage Docker caching
-COPY requirements.txt /app/
 
-# Create a virtual environment and install dependencies
-RUN python3 -m venv /app/venv && \
-    /app/venv/bin/pip install --no-cache-dir --upgrade pip && \
-    /app/venv/bin/pip install --no-cache-dir -r requirements.txt
+# Create a virtual environment
+RUN python3 -m venv /usr/src/app/venv
 
-# Copy the rest of the application code after dependencies are installed
-COPY . /app/
+# Copy the rest of the application files
+COPY . .
 
-# Ensure __pycache__ and other unnecessary files are ignored
-RUN find . -type d -name "__pycache__" -exec rm -rf {} + && \
-    find . -type f -name "*.pyc" -delete
+# Activate the virtual environment and install dependencies
+RUN /usr/src/app/venv/bin/pip install --no-cache-dir -r requirements.txt
 
-# Activate venv and set the entrypoint
-ENV PATH="/app/venv/bin:$PATH"
+# Make start.sh executable
+RUN chmod +x start.sh
 
-# Start the bot using venv Python explicitly
-CMD ["/app/venv/bin/python", "main.py"]
+# Ensure the virtual environment is used by default
+ENV PATH="/usr/src/app/venv/bin:$PATH"
+
+# Run the application
+CMD ["bash", "start.sh"]
