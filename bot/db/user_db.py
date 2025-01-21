@@ -1,11 +1,13 @@
-from pymongo import MongoClient
+from bot.logger.logger import logger
+from bot.db.main_db import db
+import sys
 from datetime import datetime, timedelta
-from config import MONGO_URI, DB_NAME
 
-# Initialize MongoDB connection
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
-users_collection = db["users"]
+if db is None:
+    logger.error("MongoDB connection is not available.")
+    sys.exit(1)
+else:
+    users_collection = db["users"]
 
 def add_or_update_user(user_id, username, full_name):
     """Add or update a user with the latest interaction timestamp."""
@@ -40,3 +42,24 @@ def get_recent_users(days=7):
 def get_all_users():
     """Fetch all user IDs from the database."""
     return users_collection.find({}, {"user_id": 1})
+
+
+def set_user_template(user_id: int, template: str):
+    """Sets or updates a user's drama details template in MongoDB."""
+    users_collection.update_one(
+        {"user_id": user_id},
+        {"$set": {"template": template}},
+        upsert=True
+    )
+
+def get_user_template(user_id: int) -> str:
+    """Retrieves a user's custom template from MongoDB, returns None if not found."""
+    user = users_collection.find_one({"user_id": user_id}, {"template": 1})
+    return user.get("template") if user else None
+
+def remove_user_template(user_id: int):
+    """Removes the user's custom template from the database."""
+    users_collection.update_one(
+        {"user_id": user_id},
+        {"$unset": {"template": ""}}
+    )

@@ -1,7 +1,6 @@
 import asyncio
 from pyrogram import Client
 from bot.db.user_db import get_all_users
-from datetime import datetime
 from bot.logger.logger import logger
 from bot.db.broadcast_db import log_broadcast_result
 # Configure logging

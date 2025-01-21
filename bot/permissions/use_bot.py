@@ -1,4 +1,4 @@
-from bot.db.db import is_user_authorized
+from bot.db.authorized_db import is_user_authorized
 from config import OWNER_ID
 from bot.db.config_db import get_public_mode
 

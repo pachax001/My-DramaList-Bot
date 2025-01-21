@@ -3,7 +3,7 @@
 import requests
 import html
 from config import API_URL, DETAILS_API_URL
-from bot.db.db import get_user_template
+from bot.db.user_db import get_user_template
 # Genre -> Emoji Mappings
 GENRE_EMOJI = {
     "Action": "🚀",

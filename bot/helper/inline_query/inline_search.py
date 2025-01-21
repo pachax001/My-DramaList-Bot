@@ -11,7 +11,6 @@ from pyrogram.types import (
     ChosenInlineResult,
 )
 from bot.utils.drama_utils import filter_dramas, get_drama_details, build_drama_caption
-from config import OWNER_ID
 from bot.permissions.use_bot import user_can_use_bot
 from bot.db.user_db import add_or_update_user
 

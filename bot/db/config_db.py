@@ -1,9 +1,11 @@
-from pymongo import MongoClient
-from config import MONGO_URI, DB_NAME
-
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
-settings_collection = db["settings"]
+from bot.logger.logger import logger
+from bot.db.main_db import db
+import sys
+if db is None:
+    logger.error("MongoDB connection is not available.")
+    sys.exit(1)
+else:
+    settings_collection = db["settings"]
 
 def set_public_mode(status: bool):
     """Set the bot public mode status (True for on, False for off)."""

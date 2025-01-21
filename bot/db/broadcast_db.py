@@ -1,12 +1,12 @@
-from pymongo import MongoClient
 from datetime import datetime
-from config import MONGO_URI, DB_NAME
 from bot.logger.logger import logger
-
-# Initialize MongoDB connection
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
-broadcast_log_collection = db["broadcast_logs"]
+from bot.db.main_db import db
+import sys
+if db is None:
+    logger.error("MongoDB connection is not available.")
+    sys.exit(1)
+else:
+    broadcast_log_collection = db["broadcast_logs"]
 
 def log_broadcast_result(message: str, sent_count: int, failed_count: int, failed_users: list):
     """Save the broadcast results in the database for tracking."""

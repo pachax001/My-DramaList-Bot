@@ -2,7 +2,7 @@
 
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from bot.db.db import set_user_template, get_user_template, remove_user_template
+from bot.db.user_db import set_user_template, get_user_template, remove_user_template
 from bot.permissions.use_bot import user_can_use_bot
 from bot.utils.drama_utils import build_drama_caption
 from pyrogram.enums import ParseMode

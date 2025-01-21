@@ -5,7 +5,6 @@ from bot.permissions.use_bot import user_can_use_bot
 import os
 from bot.db.user_db import add_or_update_user,get_total_users,get_recent_users
 from bot.logger.logger import logger
-from datetime import timedelta
 from bot.db.config_db import set_public_mode,get_public_mode
 from bot.helper.user_management.broadcast import broadcast_to_users
 from pyrogram.enums import ParseMode

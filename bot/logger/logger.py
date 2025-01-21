@@ -16,8 +16,8 @@ file_handler = RotatingFileHandler(
 stream_handler = logging.StreamHandler(sys.stdout)
 
 # Create formatters and add them to the handlers
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-#formatter = logging.Formatter('%(asctime)s - %(filename)s:%(lineno)d - %(name)s - %(levelname)s - %(message)s')  # Include filename and line number
+
+formatter = logging.Formatter('%(asctime)s - %(filename)s:%(lineno)d - %(name)s - %(levelname)s - %(message)s')  # Include filename and line number
 file_handler.setFormatter(formatter)
 stream_handler.setFormatter(formatter)
 

@@ -1,8 +1,7 @@
-from bot.logger.logger import logger
-from pyrogram import Client, filters
+from pyrogram import Client
 from pyrogram.types import Message
 from config import OWNER_ID
-from bot.db.db import (
+from bot.db.authorized_db import (
     is_user_authorized,
     authorize_user,
     unauthorize_user,
