@@ -10,7 +10,7 @@ from bot.db.config_db import set_public_mode,get_public_mode
 from bot.helper.user_management.broadcast import broadcast_to_users
 from pyrogram.enums import ParseMode
 OWNER_PROFILE_URL = "https://t.me/gunaya001"
-SOURCE_CODE_URL = "https://github.com/YourGitHubRepo"
+SOURCE_CODE_URL = "https://github.com/pachax001/My-DramaList-Bot"
 async def start_command(client: Client, message: Message):
     user_id = message.from_user.id
     username = message.from_user.username or "Unknown"
@@ -59,7 +59,7 @@ async def start_command(client: Client, message: Message):
                 "Please contact the bot owner for access."
             )
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("Contact Owner", url="https://t.me/YourOwnerUsername")]
+                [InlineKeyboardButton("Contact Owner", url=OWNER_PROFILE_URL)]
             ])
 
     await message.reply_text(text, reply_markup=keyboard)
