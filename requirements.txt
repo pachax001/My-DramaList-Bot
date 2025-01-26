@@ -4,3 +4,5 @@ tgcrypto
 pymongo
 python-dotenv
 requests
+urllib3
+certifi

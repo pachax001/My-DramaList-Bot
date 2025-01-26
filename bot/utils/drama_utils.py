@@ -1,6 +1,7 @@
 # drama_utils.py
 
 import requests
+import certifi
 import html
 from config import API_URL, DETAILS_API_URL
 from bot.db.user_db import get_user_template
@@ -42,7 +43,9 @@ def filter_dramas(query: str) -> list:
     Searches for dramas with the external API using API_URL.
     Returns a list of drama dicts (title, year, slug, thumb, etc.).
     """
-    response = requests.get(API_URL.format(query))
+    session = requests.Session()
+    session.verify = certifi.where()
+    response = session.get(API_URL.format(query),headers={'User-Agent': 'Mozilla/5.0'})
     if response.status_code == 200:
         data = response.json()
         return data.get("results", {}).get("dramas", [])
@@ -54,7 +57,9 @@ def get_drama_details(slug: str) -> dict:
     Fetches detailed info for a specific drama from DETAILS_API_URL.
     Returns a dict or empty if fails.
     """
-    response = requests.get(DETAILS_API_URL.format(slug))
+    session = requests.Session()
+    session.verify = certifi.where()
+    response = session.get(DETAILS_API_URL.format(slug),headers={'User-Agent': 'Mozilla/5.0'})
     if response.status_code == 200:
         data = response.json()
         return data.get("data", {})
