@@ -190,10 +190,15 @@ async def manual_broadcast_command(client: Client, message: Message):
     if message.from_user.id != OWNER_ID:
         return await message.reply_text("❌ You are not authorized to use this command.")
 
-    parts = message.text.split(" ", 1)
-    if len(parts) < 2:
-        return await message.reply_text("⚙️ Usage: /broadcast message")
+    if message.reply_to_message:
+        custom_message = message.reply_to_message.text or message.reply_to_message.caption
+        if not custom_message:
+            return await message.reply_text("⚙️ The replied message does not contain any text to broadcast.")
 
-    custom_message = parts[1]
+    else:
+        parts = message.text.split(" ", 1)
+        if len(parts) < 2:
+            return await message.reply_text("⚙️ Usage: /broadcast message")
+        custom_message = parts[1]
     await broadcast_to_users(client, custom_message)
     await message.reply_text("✅ Message has been broadcasted successfully.")

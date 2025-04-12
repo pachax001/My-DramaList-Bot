@@ -1,5 +1,6 @@
 import asyncio
 from pyrogram import Client
+from pyrogram.enums import ParseMode
 from bot.db.user_db import get_all_users
 from bot.logger.logger import logger
 from bot.db.broadcast_db import log_broadcast_result
@@ -64,7 +65,7 @@ async def send_message(client, user_id, message, failed_users):
         bool: True if successful, False otherwise.
     """
     try:
-        await client.send_message(chat_id=user_id, text=message)
+        await client.send_message(chat_id=user_id, text=message, parse_mode=ParseMode.HTML)
         return True
     except Exception as e:
         logger.error(f"❌ Failed to send message to {user_id}: {e}")
