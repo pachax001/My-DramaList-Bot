@@ -15,7 +15,7 @@ async def search_dramas_command(client: Client, message: Message):
     add_or_update_user(user_id, username, full_name)
     parts = message.text.split(" ", 1)
     if len(parts) < 2:
-        return await message.reply_text("Usage: /s search_query")
+        return await message.reply_text("Usage: /mdl search_query")
 
     query = parts[1].strip()
     logger.info(f"User {user_id} is searching for '{query}'")
