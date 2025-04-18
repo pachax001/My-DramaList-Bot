@@ -1,8 +1,8 @@
 # MyDramaList Telegram Bot
 
-MyDramaList Telegram Bot is a powerful bot that allows users to search for dramas, retrieve details using MyDramaList URLs, and customize the display of drama information using templates. It supports user management, template customization, admin control, and public mode toggling.
+MyDramaList/IMDB Telegram Bot is a powerful bot that allows users to search for dramas,movies,series, retrieve details using MyDramaList/IMDB URLs, and customize the display of  information using templates. It supports user management, template customization, admin control, and public mode toggling.
 
-For the mydramalist API this bot uses [this custom API](https://github.com/tbdsux/kuryana). Might need to deploy your own API using this for bot to work.
+For the mydramalist API, this bot uses [this custom API](https://github.com/tbdsux/kuryana). Might need to deploy your own API using this for bot to work.
 
 ---
 
@@ -11,17 +11,23 @@ For the mydramalist API this bot uses [this custom API](https://github.com/tbdsu
 ### **General Commands**
 - `/start` - Start the bot and receive a welcome message.
 - `/help` - Get a list of available commands and usage details.
-- `/s <query>` - Search for a drama by title.
-- `/url <mydramalist_url>` - Get drama details by providing a MyDramaList URL.
+- `/mdl <query>` - Search using mydramalist.
+- `/mdlurl <mydramalist_url>` - Get details by providing MyDramaList URL.
+- `/imdb <query>` - Search using IMDB.
+- `/imdburl <IMDB_url>` - Get details by providing IMDB URL.
 
 ### **User Commands**
-- `/settemplate <template>` - Set a custom display template.
-- `/gettemplate` - View your current template.
-- `/removetemplate` - Remove your custom template.
-- `/previewtemplate` - Preview your custom template.
+- `/setmdltemplate <template>` - Set a custom display template for MyDramaList (Can reply to the template also to add it).
+- `/getmdltemplate` - View your current MyDramaList template.
+- `/removemdltemplate` - Remove your custom MyDramaList template.
+- `/previewmdltemplate` - Preview your custom MyDramaList template.
+- `/setimdbtemplate <template>` - Set a custom display template for IMDB (Can reply to the template also to add it).
+- `/getimdbtemplate` - View your current IMDB template.
+- `/removeimdbtemplate` - Remove your custom IMDB template.
+- `/previeiwmdbtemplate` - Preview your custom IMDB template.
 
-### **Inline Search**
-- Search dramas inline in any chat using `@mydramalist001bot <query>`.
+### **Inline Search (Only works for MyDramaList)**
+- Search dramas inline in any chat using `@username_of_your_bot <query>`. (Enable this in BotFather)
 - Example: `@mydramalist001bot Vincenzo`.
 
 ### **Admin Commands**
@@ -30,21 +36,20 @@ For the mydramalist API this bot uses [this custom API](https://github.com/tbdsu
 - `/users` - View the list of authorized users.
 - `/log` - Retrieve bot logs.
 - `/setpublicmode` - Toggle public mode on/off.
-- `/broadcast <message>` - Send a message to all users.
+- `/broadcast <message>` - Send a message to all users(Can reply to the message also. Support HTML formatting).
 
 ---
 
 ## 🛠 Template Usage Guide
 
-You can customize how drama information is displayed by setting a template using placeholders.
+You can customize how information is displayed by setting a template using placeholders.
 
-### **Usage:**
 
-`/settemplate Your Template`
 
 
 ### **Available placeholders:**
 
+#### MyDramaList
 - **➤ Drama Info:**  
   `{title}, {complete_title}, {link}, {rating}, {synopsis}`
 
@@ -54,6 +59,19 @@ You can customize how drama information is displayed by setting a template using
 - **➤ Additional Info:**  
   `{duration}, {content_rating}, {score}, {ranked}, {popularity},`  
   `{watchers}, {favorites}, {genres}, {tags}, {native_title}, {also_known_as}`
+
+---
+
+#### IMDB
+
+- **➤ Basic Info**
+  `{title}`, `{localized_title}`, `{kind}`, `{year}`, `{rating}`, `{votes}`, `{runtime}`, `{genres}`, `{cast}`
+- **➤ Crew & Production**
+  `{director}`, `{writer}`, `{producer}`, `{composer}`, `{cinematographer}`, `{music_team}`, `{distributors}`
+- **➤ Release & Locale**
+  `{countries}`, `{certificates}`, `{languages}`, `{box_office}`
+- **➤ Extras**
+  `{seasons}`, `{plot}`, `{imdb_url}`
 
 ---
 
@@ -122,19 +140,26 @@ Use this to paste bot commands in [BotFather](https://t.me/BotFather)
 ```
 start - Start the bot
 help - Show help message
-s - Search for a drama
-url - Get drama details from a My Dramalist URL
+mdl - Search in mydramalist using a keyword
+mdlurl - Get details by the mydramalist URL
+setmdltemplate - Set mydramalist template (Works with reply now)
+getmdltemplate - Get current mydramalist template
+removemdltemplate - Delete current mydramalist template
+previewmdltemplate - Preview mydramalist template
+imdb - Search in IMDB using a keyword
+imdburl - Get details by the mydramalist URL
+setimdbtemplate - Set IMDB template (Works with reply now)
+getimdbtemplate - Get current IMDB template
+removeimdbtemplate - Delete current IMDB template
+previewimdbtemplate - Preview IMDB template
 authorize - Authorize a new user (Owner Only)
 unauthorize - Unauthorize a user (Owner Only)
 users - List authorized users (Owner Only)
 userstats - Get user stats (Owner Only)
-settemplate - Set custom template
-gettemplate - Get your current template
-removetemplate - Remove your template
-previewtemplate - Preview your template
 log - Get bot logs (Owner Only)
 setpublicmode - Toggle public mode (Owner Only)
 broadcast - Broadcast a message to all users (Owner Only)
+
 ```
 
 ### 🛠 Development Guide
