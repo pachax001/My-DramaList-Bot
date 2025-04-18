@@ -14,7 +14,7 @@ async def set_imdb_template_command(client: Client, message: Message):
 
     parts = message.text.split(" ", 1)
     text = (
-        "**Usage:** `/setimdbtemplate Your IMDB Template`\n\n"
+        "**Usage:** `/setimdbtemplate Your IMDB Template or reply to template with the command`\n\n"
         "**Available placeholders:**\n\n"
         "**➤ Basic Info**\n"
         "`{title}`, `{localized_title}`, `{kind}`, `{year}`, `{rating}`, `{votes}`, `{runtime}`, `{genres}`, `{cast}`\n\n"

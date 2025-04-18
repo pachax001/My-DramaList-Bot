@@ -105,9 +105,9 @@ async def help_command(client: Client, message: Message):
             
             "⚙️ **User Commands IMDB:**\n"
             "`/setimdbtemplate <template>` - Set a custom display template for IMDB Results\n"
-            "`/getmdltemplate` - View your current IMDB template\n"
-            "`/removemdltemplate` - Remove your custom IMDB template\n"
-            "`/previewmdltemplate` - Preview your custom IMDB template\n\n"
+            "`/getimdbtemplate` - View your current IMDB template\n"
+            "`/removeimdbtemplate` - Remove your custom IMDB template\n"
+            "`/previewimdbtemplate` - Preview your custom IMDB template\n\n"
 
             "🔐 **Admin Commands:**\n"
             "`/authorize <user_id>` - Allow a user to access the bot\n"

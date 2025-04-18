@@ -16,7 +16,7 @@ async def set_template_command(client: Client, message: Message):
 
     parts = message.text.split(" ", 1)
     text = (
-        "**Usage:** `/setmdltemplate Your Template`\n\n"
+        "**Usage:** `/setmdltemplate Your Template or reply to template with the command`\n\n"
         "**Available placeholders:**\n\n"
         "**➤ Drama Info**\n"
         "`{title}`, `{complete_title}`, `{link}`, `{rating}`, `{synopsis}`\n\n"
