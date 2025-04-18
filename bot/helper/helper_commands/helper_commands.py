@@ -10,6 +10,7 @@ from bot.helper.user_management.broadcast import broadcast_to_users
 from pyrogram.enums import ParseMode
 OWNER_PROFILE_URL = "https://t.me/gunaya001"
 SOURCE_CODE_URL = "https://github.com/pachax001/My-DramaList-Bot"
+MAIN_CHANNEL = "https://t.me/kdramaworld_ongoing"
 async def start_command(client: Client, message: Message):
     user_id = message.from_user.id
     username = message.from_user.username or "Unknown"
@@ -34,7 +35,7 @@ async def start_command(client: Client, message: Message):
         )
         keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("💻 Source Code", url=SOURCE_CODE_URL)],
-        [InlineKeyboardButton("Search Inline", switch_inline_query_current_chat="")]
+        [InlineKeyboardButton("Search Inline (Only MyDramalist)", switch_inline_query_current_chat="")]
     ])
     else:
         if user_can_use_bot(user_id):
@@ -42,14 +43,18 @@ async def start_command(client: Client, message: Message):
                 f"👋 Hello <b>{username}</b>!\n\n"
                 "✅ You have access to this bot.\n"
                 "Use the commands below to get started:\n\n"
-                "🔍 <b>Search Dramas:</b> <code>/s &lt;query&gt;</code>\n"
-                "🔗 <b>Get Details by URL:</b> <code>/url &lt;mydramalistURL&gt;</code>\n\n"
+                "🔍 <b>Search Dramas on Mydramalist:</b> <code>/mdl &lt;query&gt;</code>\n"
+                "🔍 <b>Search on IMDB:</b> <code>/imdb &lt;query&gt;</code>\n"
+                "🔗 <b>Get Details by Mydramalist URL:</b> <code>/mdlurl &lt;mydramalistURL&gt;</code>\n"
+                "🔗 <b>Get Details by IMDB URL:</b> <code>/imdburl &lt;imdbURL&gt;</code>\n\n"
                 "📄 Use /help to explore all available commands."
             )
 
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("Search Inline", switch_inline_query_current_chat="")],
-                [InlineKeyboardButton("Help", callback_data="help_command")]
+                [InlineKeyboardButton("Search Inline (Only MyDramalist)", switch_inline_query_current_chat="")],
+                [InlineKeyboardButton("Help", callback_data="help_command")],
+                [InlineKeyboardButton("K-Drama Channel", url=MAIN_CHANNEL)],
+
             ])
         else:
             text = (
@@ -58,7 +63,8 @@ async def start_command(client: Client, message: Message):
                 "Please contact the bot owner for access."
             )
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("Contact Owner", url=OWNER_PROFILE_URL)]
+                [InlineKeyboardButton("Contact Owner", url=OWNER_PROFILE_URL)],
+                [InlineKeyboardButton("K-Drama Channel", url=MAIN_CHANNEL)],
             ])
 
     await message.reply_text(text, reply_markup=keyboard)
@@ -77,39 +83,31 @@ async def help_command(client: Client, message: Message):
     """Handles the /help command and provides guidance to users."""
     if user_can_use_bot(message.from_user.id) or message.from_user.id == OWNER_ID:
         help_text = (
-            "**MyDramaList Bot Commands:**\n\n"
+            "**Bot Commands:**\n\n"
             
             "📖 **General Commands:**\n"
             "`/start` - Start the bot and get a welcome message\n"
             "`/help` - Show this help message\n"
-            "`/s <query>` - Search for a drama by title\n"
-            "`/url <mydramalist_url>` - Get drama details by URL\n\n"
+             "**MyDramalist Commands:**\n\n"
+            "`/mdl <query>` - Search for a drama by title\n"
+            "`/mdlurl <mydramalist_url>` - Get drama details by URL\n\n"
 
-            "⚙️ **User Commands:**\n"
-            "`/settemplate <template>` - Set a custom display template\n"
-            "`/gettemplate` - View your current template\n"
-            "`/removetemplate` - Remove your custom template\n"
-            "`/previewtemplate` - Preview your custom template\n\n"
+            "⚙️ **User Commands MyDramalist:**\n"
+            "`/setmdltemplate <template>` - Set a custom display template for MyDramalist Results\n"
+            "`/getmdltemplate` - View your current MyDramalist template\n"
+            "`/removemdltemplate` - Remove your custom MyDramalist template\n"
+            "`/previewmdltemplate` - Preview your custom MyDramalist template\n\n"
 
-            "🛠 **Template Setting Guide:**\n"
-            "**Usage:** `/settemplate Your Template`\n\n"
-            "**Available placeholders:**\n\n"
-            "**➤ Drama Info**\n"
-            "`{title}`, `{complete_title}`, `{link}`, `{rating}`, `{synopsis}`\n\n"
-            "**➤ Details**\n"
-            "`{country}`, `{type}`, `{episodes}`, `{aired}`, `{aired_on}`, `{original_network}`\n\n"
-            "**➤ Additional Info**\n"
-            "`{duration}`, `{content_rating}`, `{score}`, `{ranked}`, `{popularity}`,\n"
-            "`{watchers}`, `{favorites}`, `{genres}`, `{tags}`, `{native_title}`, `{also_known_as}`\n\n"
-            "**HTML Formatting Supported:**\n"
-            "`<b>Bold</b>`, `<strong>Strong</strong>`, `<i>Italic</i>`, `<em>Emphasis</em>`, `<u>Underline</u>`,\n"
-            "`<ins>Inserted</ins>`, `<s>Strikethrough</s>`, `<strike>Strike</strike>`, `<del>Deleted</del>`,\n"
-            "`<code>Code</code>`, `<pre>Preformatted</pre>`, `<a href='https://mydramalist.com/'>Link</a>`\n\n"
-
-            "🔍 **Inline Query Usage:**\n"
-            "Simply type `@mydramalist001bot` followed by your search query in any chat.\n"
+            "🔍 **Inline Query Usage (Only works for MyDramalist):**\n"
+            "Simply type `@mydramalist001bot` followed by your search query in any chat. Only works for MyDramalist\n"
             "Example:\n"
             "`@mydramalist001bot Vincenzo`\n\n"
+            
+            "⚙️ **User Commands IMDB:**\n"
+            "`/setimdbtemplate <template>` - Set a custom display template for IMDB Results\n"
+            "`/getmdltemplate` - View your current IMDB template\n"
+            "`/removemdltemplate` - Remove your custom IMDB template\n"
+            "`/previewmdltemplate` - Preview your custom IMDB template\n\n"
 
             "🔐 **Admin Commands:**\n"
             "`/authorize <user_id>` - Allow a user to access the bot\n"
@@ -117,18 +115,15 @@ async def help_command(client: Client, message: Message):
             "`/users` - View authorized users\n"
             "`/log` - Retrieve the bot's log file\n\n"
 
-            "💡 **Usage Examples:**\n"
-            "`/s Vincenzo`\n"
-            "`/url https://mydramalist.com/12345-vincenzo`\n"
-            "`/settemplate <b>{title}</b> - {rating}⭐ | {episodes} Episodes`\n\n"
-
             "For more details, contact the bot owner."
         )
 
         # Inline keyboard with buttons to owner profile and source code
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("👤 Owner", url=OWNER_PROFILE_URL)],
-            [InlineKeyboardButton("💻 Source Code", url=SOURCE_CODE_URL)]
+            [InlineKeyboardButton("💻 Source Code", url=SOURCE_CODE_URL)],
+            [InlineKeyboardButton("K-Drama Channel", url=MAIN_CHANNEL)],
+
         ])
 
         await message.reply_text(help_text, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
@@ -153,6 +148,8 @@ async def user_stats_command(client: Client, message: Message):
     )
 
     await message.reply_text(stats_text)
+    return None
+
 
 async def set_public_mode_command(client: Client, message: Message):
     """Command to toggle public mode on or off and notify users."""
@@ -183,6 +180,7 @@ async def set_public_mode_command(client: Client, message: Message):
     )
 
     await broadcast_to_users(client, broadcast_message, batch_size=30, delay=2)
+    return None
 
 
 async def manual_broadcast_command(client: Client, message: Message):
@@ -202,3 +200,4 @@ async def manual_broadcast_command(client: Client, message: Message):
         custom_message = parts[1]
     await broadcast_to_users(client, custom_message)
     await message.reply_text("✅ Message has been broadcasted successfully.")
+    return None

@@ -6,3 +6,4 @@ python-dotenv
 requests
 urllib3
 certifi
+git+https://github.com/cinemagoer/cinemagoer

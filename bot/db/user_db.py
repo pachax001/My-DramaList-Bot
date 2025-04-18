@@ -63,3 +63,23 @@ def remove_user_template(user_id: int):
         {"user_id": user_id},
         {"$unset": {"template": ""}}
     )
+
+def set_user_imdb_template(user_id: int, template: str):
+    """Sets or updates a user's drama details template in MongoDB."""
+    users_collection.update_one(
+        {"user_id": user_id},
+        {"$set": {"imdb_template": template}},
+        upsert=True
+    )
+
+def get_user_imdb_template(user_id: int) -> str:
+    """Retrieves a user's custom template from MongoDB, returns None if not found."""
+    user = users_collection.find_one({"user_id": user_id}, {"imdb_template": 1})
+    return user.get("imdb_template") if user else None
+
+def remove_user_imdb_template(user_id: int):
+    """Removes the user's custom template from the database."""
+    users_collection.update_one(
+        {"user_id": user_id},
+        {"$unset": {"imdb_template": ""}}
+    )

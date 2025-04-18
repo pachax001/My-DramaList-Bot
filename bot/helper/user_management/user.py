@@ -18,11 +18,14 @@ async def authorize_cmd(client: Client, message: Message):
         new_user_id = int(parts[1])
         if is_user_authorized(new_user_id):
             await message.reply_text(f"User {new_user_id} is already authorized.")
+            return None
         else:
             authorize_user(new_user_id)
             await message.reply_text(f"User {new_user_id} has been authorized.")
+            return None
     except ValueError:
         await message.reply_text("Invalid user ID. Must be an integer.")
+        return None
 
 
 async def unauthorize_cmd(client: Client, message: Message):
@@ -37,11 +40,14 @@ async def unauthorize_cmd(client: Client, message: Message):
         
         if not is_user_authorized(user_id_to_remove):
             await message.reply_text(f"User {user_id_to_remove} is not authorized.")
+            return None
         else:
             unauthorize_user(user_id_to_remove)
             await message.reply_text(f"User {user_id_to_remove} has been unauthorized.")
+            return None
     except ValueError:
         await message.reply_text("Invalid user ID. Must be an integer.")
+        return None
 
 
 async def list_users_cmd(client: Client, message: Message):

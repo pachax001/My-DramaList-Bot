@@ -20,7 +20,9 @@ from bot.helper.template_management.template_handler import set_template_command
 from bot.logger.logger import logger
 from config import initialize_settings
 
-
+from bot.helper.imdb.search_imdb import search_imdb, imdb_pagination_callback, imdb_details_callback
+from bot.helper.template_management.imdb_template import get_imdb_template_command, set_imdb_template_command, remove_imdb_template_command, preview_imdb_template_command
+from bot.helper.imdb.search_imdb_url import handle_imdb_url
 initialize_settings()
 
 # -------------------------------------------------------------------
@@ -92,18 +94,25 @@ app.add_handler(
 
 
 # -------------------------------------------------------------------
-# Handler: /s (Search Dramas)
+# Handler: Search
 # -------------------------------------------------------------------
 app.add_handler(
     MessageHandler(
         search_dramas_command,
-        filters.command("s", prefixes="/")
+        filters.command("mdl", prefixes="/")
+    )
+)
+
+app.add_handler(
+    MessageHandler(
+        search_imdb,
+        filters.command("imdb", prefixes="/")
     )
 )
 
 
 # -------------------------------------------------------------------
-# Handler: Drama Details Callback
+# Handler: Details Callback
 # -------------------------------------------------------------------
 app.add_handler(
     CallbackQueryHandler(
@@ -112,14 +121,36 @@ app.add_handler(
     )
 )
 
+app.add_handler(
+    CallbackQueryHandler(
+        imdb_details_callback,
+        filters.regex("^imdbdetails")
+    )
+)
+
+
+app.add_handler(
+    CallbackQueryHandler(
+        imdb_pagination_callback,
+        filters.regex("^imdb:")
+    )
+)
+
 
 # -------------------------------------------------------------------
-# Handler: /url
+# Handler: url
 # -------------------------------------------------------------------
 app.add_handler(
     MessageHandler(
         handle_drama_url,
-        filters.command("url", prefixes="/")
+        filters.command("mdlurl", prefixes="/")
+    )
+)
+
+app.add_handler(
+    MessageHandler(
+        handle_imdb_url,
+        filters.command("imdburl", prefixes="/")
     )
 )
 
@@ -136,44 +167,71 @@ app.add_handler(
 
 
 # -------------------------------------------------------------------
-# Handler: /settemplate (User-specific template)
+# Handler: set template (User-specific template)
 # -------------------------------------------------------------------
 app.add_handler(
     MessageHandler(
         set_template_command,
-        filters.command("settemplate", prefixes="/")
+        filters.command("setmdltemplate", prefixes="/")
+    )
+)
+
+app.add_handler(
+    MessageHandler(
+        set_imdb_template_command,
+        filters.command("setimdbtemplate", prefixes="/")
     )
 )
 
 # -------------------------------------------------------------------
-# Handler: /gettemplate (User-specific template)
+# Handler: get template (User-specific template)
 # -------------------------------------------------------------------
 app.add_handler(
     MessageHandler(
         get_template_command,
-        filters.command("gettemplate", prefixes="/")
+        filters.command("getmdltemplate", prefixes="/")
+    )
+)
+app.add_handler(
+    MessageHandler(
+        get_imdb_template_command,
+        filters.command("getimdbtemplate", prefixes="/")
     )
 )
 
 # -------------------------------------------------------------------
-# Handler: /removetemplate (User-specific template)
+# Handler: remove template (User-specific template)
 # -------------------------------------------------------------------
 app.add_handler(
     MessageHandler(
         remove_template_command,
-        filters.command("removetemplate", prefixes="/")
+        filters.command("removemdltemplate", prefixes="/")
+    )
+)
+
+app.add_handler(
+    MessageHandler(
+        remove_imdb_template_command,
+        filters.command("removeimdbtemplate", prefixes="/")
     )
 )
 
 # -------------------------------------------------------------------
 
 # -------------------------------------------------------------------
-# Handler: /previewtemplate (User-specific template)
+# Handler: preview template (User-specific template)
 # -------------------------------------------------------------------
 app.add_handler(
     MessageHandler(
         preview_template_command,
-        filters.command("previewtemplate", prefixes="/")
+        filters.command("previewmdltemplate", prefixes="/")
+    )
+)
+
+app.add_handler(
+    MessageHandler(
+        preview_imdb_template_command,
+        filters.command("previewimdbtemplate", prefixes="/")
     )
 )
 
@@ -226,6 +284,8 @@ app.add_handler(
         filters.command("broadcast", prefixes="/") & filters.user(OWNER_ID)
     )
 )
+
+
 
 # -------------------------------------------------------------------
 # Main

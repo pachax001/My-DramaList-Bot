@@ -12,15 +12,15 @@ API_ID = os.getenv("API_ID", "").strip()
 API_HASH = os.getenv("API_HASH", "").strip()
 OWNER_ID = os.getenv("OWNER_ID", "").strip()
 IS_PUBLIC_ENV = os.getenv("IS_PUBLIC", "false").lower() == "true"
-
+FORCE_SUB_CHANNEL_ID = os.getenv("FORCE_SUB_CHANNEL_ID", "").strip()
 # MongoDB
 MONGO_URI = os.getenv("MONGO_URI", "").strip()
 DB_NAME = os.getenv("DB_NAME", "mydramalist_bot_db").strip()
 
 # MyDramaList API endpoints
 
-API_URL = os.getenv("API_URL", "https://kuryana.vercel.app/search/q/{}").strip()
-DETAILS_API_URL = os.getenv("DETAILS_API_URL", "https://kuryana.vercel.app/id/{}").strip()
+API_URL = os.getenv("API_URL", "https://kuryana.tbdh.app/search/q/{}").strip()
+DETAILS_API_URL = os.getenv("DETAILS_API_URL", "https://kuryana.tbdh.app/id/{}").strip()
 
 
 def validate_config():

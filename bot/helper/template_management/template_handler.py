@@ -16,7 +16,7 @@ async def set_template_command(client: Client, message: Message):
 
     parts = message.text.split(" ", 1)
     text = (
-        "**Usage:** `/settemplate Your Template`\n\n"
+        "**Usage:** `/setmdltemplate Your Template`\n\n"
         "**Available placeholders:**\n\n"
         "**➤ Drama Info**\n"
         "`{title}`, `{complete_title}`, `{link}`, `{rating}`, `{synopsis}`\n\n"
@@ -30,6 +30,14 @@ async def set_template_command(client: Client, message: Message):
         "`<ins>Inserted</ins>`, `<s>Strikethrough</s>`, `<strike>Strike</strike>`, `<del>Deleted</del>`,\n"
         "`<code>Code</code>`, `<pre>Preformatted</pre>`, `<a href='https://mydramalist.com/'>Link</a>`\n"
     )
+    if message.reply_to_message:
+        if message.reply_to_message.from_user.id != user_id:
+            return await message.reply_text("Not your message")
+        custom_message = message.reply_to_message.text or message.reply_to_message.caption
+        if not custom_message:
+            return await message.reply_text("Replied message has no text/caption to use as template!")
+        set_user_template(user_id, custom_message.strip())
+        return await message.reply_text("Custom MDL template saved from replied message!")
 
 
     if len(parts) < 2:
@@ -41,7 +49,8 @@ async def set_template_command(client: Client, message: Message):
 
     user_template = parts[1].strip()
     set_user_template(user_id, user_template)
-    await message.reply_text("Your custom template has been saved!")
+    await message.reply_text("Your custom MDL template has been saved!")
+    return None
 
 
 async def get_template_command(client: Client, message: Message):
@@ -52,9 +61,11 @@ async def get_template_command(client: Client, message: Message):
 
     user_template = get_user_template(user_id)
     if user_template:
-        await message.reply_text(f"Your current template:\n\n<code>{user_template}</code>")
+        await message.reply_text(f"Your current MDL template:\n\n<code>{user_template}</code>")
+        return None
     else:
-        await message.reply_text("You have not set a custom template yet.")
+        await message.reply_text("You have not set a custom MDL template yet.")
+        return None
 
 
 async def remove_template_command(client: Client, message: Message):
@@ -64,18 +75,21 @@ async def remove_template_command(client: Client, message: Message):
         return await message.reply_text("You are not authorized to use this bot.")
 
     remove_user_template(user_id)
-    await message.reply_text("Your custom template has been removed.")
-
+    await message.reply_text("Your custom MDL template has been removed.")
+    return None
 
 
 async def preview_template_command(client: Client, message: Message):
     """Allows the user to preview their current custom template with a sample poster."""
     user_id = message.from_user.id
 
+    if not user_can_use_bot(user_id):
+        return await message.reply_text("You are not authorized to use this bot.")
+
     # Retrieve the user's custom template
     user_template = get_user_template(user_id)
     if not user_template:
-        return await message.reply_text("You have not set a custom template yet. Use /settemplate to create one.")
+        return await message.reply_text("You have not set a custom MDL template yet. Use /setmdltemplate to create one.")
 
     # Sample drama data for preview
     sample_drama_data = {
@@ -116,3 +130,4 @@ async def preview_template_command(client: Client, message: Message):
         caption=preview_caption,
         reply_markup=markup
     )
+    return None

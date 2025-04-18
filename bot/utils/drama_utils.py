@@ -86,7 +86,7 @@ def build_drama_caption(user_id: int, drama_data: dict, slug: str) -> str:
         value = get_field(data, field, default)
         return value[0] if isinstance(value, list) and value else default
 
-    # Build necessary fields
+    # Build the necessary fields
     title = get_field(drama_data, "title")
     complete_title = get_field(drama_data, "complete_title")
     drama_link = get_field(drama_data, "link", f"https://mydramalist.com/{slug}")
@@ -134,13 +134,14 @@ def build_drama_caption(user_id: int, drama_data: dict, slug: str) -> str:
     # Fetch user's custom template from the database
     user_template = get_user_template(user_id)
 
-    # If user template exists, apply it with error handling for invalid placeholders
+    # If a user template exists, apply it with error handling for invalid placeholders
     if user_template:
         try:
             valid_placeholders = {key: placeholders[key] for key in placeholders if f"{{{key}}}" in user_template}
             caption = user_template.format(**valid_placeholders)
         except Exception as e:
             caption = f"Error in template formatting: {e}"
+        return caption
     else:
         # Default caption template
         caption = (

@@ -24,7 +24,7 @@ async def search_dramas_command(client: Client, message: Message):
     if not dramas:
         return await message.reply_text("No dramas found for that query.")
 
-    # Build button list
+    # Build a button list
     keyboard = []
     for drama in dramas:
         slug = drama["slug"]
@@ -37,6 +37,7 @@ async def search_dramas_command(client: Client, message: Message):
         "Here are the search results. Click on a drama for more info:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+    return None
 
 
 async def drama_details_callback(bot: Client, update: CallbackQuery):
