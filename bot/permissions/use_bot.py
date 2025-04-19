@@ -9,10 +9,13 @@ async def is_subscribed(client: Client, user_id: int) -> bool:
     """
     Returns True if the user is a member (or above) of the FORCE_SUB_CHANNEL.
     """
+
+    if user_id ==OWNER_ID:
+        return True
     if FORCE_SUB_CHANNEL_ID is None:
         return True
     try:
-        member = await client.get_chat_member(chat_id=FORCE_SUB_CHANNEL_ID, user_id=user_id)
+        member = await client.get_chat_member(chat_id=int(FORCE_SUB_CHANNEL_ID), user_id=int(user_id))
         return member.status in (ChatMemberStatus.MEMBER,ChatMemberStatus.ADMINISTRATOR,ChatMemberStatus.OWNER)
     except UserNotParticipant:
         return False
