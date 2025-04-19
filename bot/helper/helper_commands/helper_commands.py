@@ -50,8 +50,8 @@ async def start_command(client: Client, message: Message):
                     "Use the commands below to get started:\n\n"
                     "🔍 <b>Search Dramas on Mydramalist:</b> <code>/mdl &lt;query&gt;</code>\n"
                     "🔍 <b>Search on IMDB:</b> <code>/imdb &lt;query&gt;</code>\n"
-                    "🔗 <b>Get Details by Mydramalist URL:</b> <code>/mdlurl &lt;mydramalistURL&gt;</code>\n"
-                    "🔗 <b>Get Details by IMDB URL:</b> <code>/imdburl &lt;imdbURL&gt;</code>\n\n"
+                    "🔗 <b>Get Details by Mydramalist URL:</b> <code>/mdlurl &lt;mydramalistURL&gt; or reply to URL</code>\n"
+                    "🔗 <b>Get Details by IMDB URL:</b> <code>/imdburl &lt;imdbURL&gt; or reply to URL</code>\n\n"
                     "📄 Use /help to explore all available commands."
                 )
 
@@ -86,7 +86,7 @@ async def send_log(client: Client, message: Message):
 async def help_command(client: Client, message: Message):
     """Handles the /help command and provides guidance to users."""
     if await user_can_use_bot(message.from_user.id):
-        if await is_subscribed(client,message.from_user.id):
+        if not await is_subscribed(client,message.from_user.id):
             return await message.reply_text(
                 text="You have not subscribed to my channel.. Subscribe and send /start again",
                 reply_markup=channel_markup)
@@ -98,11 +98,11 @@ async def help_command(client: Client, message: Message):
                 "`/start` - Start the bot and get a welcome message\n"
                 "`/help` - Show this help message\n"
                  "**MyDramalist Commands:**\n\n"
-                "`/mdl <query>` - Search for a drama by title\n"
-                "`/mdlurl <mydramalist_url>` - Get drama details by URL\n\n"
+                "`/mdl &lt;query&gt;` - Search for a drama by title\n"
+                "`/mdlurl &lt;mydramalistURL&gt;` - Get drama details by URL (Replying to the URL also works)\n\n"
     
                 "⚙️ **User Commands MyDramalist:**\n"
-                "`/setmdltemplate <template>` - Set a custom display template for MyDramalist Results\n"
+                "`/setmdltemplate &lt;template&gt;` - Set a custom display template for MyDramalist Results\n"
                 "`/getmdltemplate` - View your current MyDramalist template\n"
                 "`/removemdltemplate` - Remove your custom MyDramalist template\n"
                 "`/previewmdltemplate` - Preview your custom MyDramalist template\n\n"
@@ -111,6 +111,9 @@ async def help_command(client: Client, message: Message):
                 "Simply type `@mydramalist001bot` followed by your search query in any chat. Only works for MyDramalist\n"
                 "Example:\n"
                 "`@mydramalist001bot Vincenzo`\n\n"
+                 "**IMDB Commands:**\n\n"
+                "`/imdb &lt;query&gt;` - Search on IMDB using a keyword\n"
+                "`/imdburl &lt;IMDBURL&gt;` - Get details by URL (Replying to the URL also works)\n\n"
                 
                 "⚙️ **User Commands IMDB:**\n"
                 "`/setimdbtemplate <template>` - Set a custom display template for IMDB Results\n"

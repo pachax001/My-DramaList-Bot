@@ -10,7 +10,7 @@ from pyrogram.errors import MediaCaptionTooLong
 channel_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Main Channel", url=FORCE_SUB_CHANNEL_URL)]])
 
 async def handle_drama_url(client: Client, message: Message):
-    """Handles the /url command to fetch drama details from a MyDramaList link."""
+    """Handles the /mdlurl command to fetch drama details from a MyDramaList link."""
     try:
         user_id = message.from_user.id
         username = message.from_user.username or "Unknown"
@@ -20,19 +20,25 @@ async def handle_drama_url(client: Client, message: Message):
         if not await is_subscribed(client,user_id):
             return await message.reply_text(text="You have not subscribed to my channel.. Subscribe and send /start again",reply_markup=channel_markup)
         add_or_update_user(user_id, username, full_name)
-        parts = message.text.split(" ", 1)
-        if len(parts) < 2:
-            return await message.reply_text("Usage: /mdlurl MyDramaList_URL")
-
-        drama_link = parts[1].strip()
-        logger.info(f"User {user_id} requested URL: {drama_link}")
-
         # Validate MyDramaList URL
         processing_message = await message.reply_text("Processing Your Request...⚙️")
-        mydramalist_regex = r"https://mydramalist.com/\d+-\S+"
-        if not re.match(mydramalist_regex, drama_link):
-            return await processing_message.edit_text("Invalid MyDramaList URL format. Please provide a valid URL.")
-
+        if message.reply_to_message and message.reply_to_message.text:
+            replied_text = message.reply_to_message.text or ""
+            mydramalist_regex = r"https://mydramalist.com/\d+-\S+"
+            match = re.search(mydramalist_regex, replied_text)
+            if match:
+                drama_link = match.group(0)
+            else:
+                return await processing_message.edit_text("Invalid MyDramaList URL format. Please provide a valid URL.")
+        else:
+            parts = message.text.split(" ", 1)
+            if len(parts) < 2:
+                return await message.reply_text("Usage: /mdlurl MyDramaList_URL or re[ly to the url with the command")
+            drama_link = parts[1].strip()
+            mydramalist_regex = r"https://mydramalist.com/\d+-\S+"
+            if not re.match(mydramalist_regex, drama_link):
+                return await processing_message.edit_text("Invalid MyDramaList URL format. Please provide a valid URL.")
+        logger.info(f"User {user_id} requested URL: {drama_link}")
         slug = drama_link.split("/")[-1]
         drama_data = get_drama_details(slug)
         if not drama_data:
