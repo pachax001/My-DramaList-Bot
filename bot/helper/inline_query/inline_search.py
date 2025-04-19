@@ -127,6 +127,9 @@ async def handle_chosen_inline_result(bot: Client, chosen_inline_result: ChosenI
     """Handles the selected inline query result."""
     logger.info(f"Chosen Inline Result: {chosen_inline_result.result_id}")
 
+    if not await is_subscribed(bot,chosen_inline_result.from_user.id):
+        return None
+
     try:
         user_id = chosen_inline_result.from_user.id
         slug = chosen_inline_result.result_id
