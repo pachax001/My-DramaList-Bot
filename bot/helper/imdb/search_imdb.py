@@ -1,32 +1,40 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from config import OWNER_ID
-from bot.permissions.use_bot import user_can_use_bot
+from config import OWNER_ID, FORCE_SUB_CHANNEL_URL
+from bot.permissions.use_bot import user_can_use_bot, is_subscribed
 from bot.db.user_db import add_or_update_user
 from bot.logger.logger import logger
 from bot.utils.imdb_utils import filter_imdb, build_imdb_caption
 from bot.helper.imdb.imdb_details import get_details_by_imdb_id
+from pyrogram.errors import MediaCaptionTooLong
 PAGE_SIZE = 10
-
+channel_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Main Channel", url=FORCE_SUB_CHANNEL_URL)]])
 async def search_imdb(client: Client, message: Message):
     user_id = message.from_user.id
-    if not user_can_use_bot(user_id):
+    if not await user_can_use_bot(user_id):
         return await message.reply_text("You are not authorized to use this bot.")
 
+    if not await is_subscribed(client,user_id):
+        return await message.reply_text(
+            text="You have not subscribed to my channel.. Subscribe and send /start again",
+            reply_markup=channel_markup)
     # parse out the query
     parts = message.text.split(" ", 1)
     if len(parts) < 2:
         return await message.reply_text("Usage: /imdb <keyword>")
     query = parts[1].strip()
 
+    processing_message = await message.reply_text("Processing Your Request...⚙️")
+
     # fetch & store full list in memory (or re-query each time)
     all_results = filter_imdb(query)
     if not all_results:
-        return await message.reply_text("No IMDb results found.")
+        return await processing_message.edit_text("No IMDb results found.")
 
     # show page 1
-    await _show_page(message, query, all_results, page=1)
-    return None
+    await processing_message.delete()
+    return await _show_page(message, query, all_results, page=1)
+
 
 
 async def imdb_pagination_callback(client, callback_query):
@@ -40,8 +48,8 @@ async def imdb_pagination_callback(client, callback_query):
         return await callback_query.message.edit_text("No results found.")
 
     await _show_page(callback_query.message, query, all_results, page, edit=True)
-    await callback_query.answer()  # removes the “⏳” loading state
-    return None
+    return await callback_query.answer()  # removes the “⏳” loading state
+
 
 
 async def _show_page(msg_or_event, query, all_results, page, edit=False):
@@ -99,7 +107,7 @@ async def imdb_details_callback(bot: Client, update: CallbackQuery):
 
         imdb_data = get_details_by_imdb_id(imdb_id)
         logger.info(f"Retrieved imdb details for slug: {imdb_id}")
-        logger.info(f"Found {imdb_data} imdb details")
+        #logger.info(f"Found {imdb_data} imdb details")
 
         if not imdb_data:
             await bot.send_message(
@@ -128,11 +136,13 @@ async def imdb_details_callback(bot: Client, update: CallbackQuery):
             )
         if update.message.reply_to_message:
             await update.message.reply_to_message.delete()
-        await update.message.delete()
-
+        return await update.message.delete()
+    except MediaCaptionTooLong as e:
+        logger.error(f"MediaCaptionTooLong: {e}")
+        return await bot.send_message(text=f"Failed to fetch IMDB details. Caption is too long for image. Please reduce caption and try again.",chat_id=update.message.chat.id)
     except Exception as e:
         logger.error(f"Error in drama_details_callback: {e}")
-        await bot.send_message(
+        return await bot.send_message(
             chat_id=update.message.chat.id,
             text="An error occurred. Please try again later."
         )

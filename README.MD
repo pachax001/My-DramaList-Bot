@@ -36,7 +36,12 @@ For the mydramalist API, this bot uses [this custom API](https://github.com/tbds
 - `/users` - View the list of authorized users.
 - `/log` - Retrieve bot logs.
 - `/setpublicmode` - Toggle public mode on/off.
-- `/broadcast <message>` - Send a message to all users(Can reply to the message also. Support HTML formatting).
+- `/broadcast <message>` - Send a message to all users (Can reply to the message also. Support HTML formatting).
+
+---
+
+### **Force Sub**
+- You can now enable force subscription for a channel. Make sure bot is an admin of the channel.
 
 ---
 
@@ -127,6 +132,8 @@ cp sample_config.env config.env
 `DB_NAME`     MongoDB name. <br>
 `API_URL`     Custom deployed API url from [https://github.com/tbdsux/kuryana](https://github.com/tbdsux/kuryana). Default value is `https://kuryana.vercel.app/search/q/{}`. <br>
 `DETAILS_API_URL`  Custom deployed API url from [https://github.com/tbdsux/kuryana](https://github.com/tbdsux/kuryana). Default value is `https://kuryana.vercel.app/id/{}`. <br>
+`FORCE_SUB_CHANNEL_ID` Force Sub Channel ID (Make sure bot is an admin of the channel) <br>
+`FORCE_SUB_CHANNEL_URL` If the above `FORCE_SUB_CHANNEL_ID` is set make sure to fill this, else users will not be able to find the channel.
 
 ### **4. Build and Run the Bot**
 
@@ -186,7 +193,7 @@ docker-compose down
 ### **👤 Contact**
 For any issues or questions, contact the bot owner:
 
-[Telegram: Bot Owner](https://t.me/gunaya001)
+[Telegram: Bot Owner](https://t.me/gunaya001contactbot)
 
 ### ⚠️ License
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.

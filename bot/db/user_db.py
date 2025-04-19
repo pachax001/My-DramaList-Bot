@@ -83,3 +83,24 @@ def remove_user_imdb_template(user_id: int):
         {"user_id": user_id},
         {"$unset": {"imdb_template": ""}}
     )
+
+def get_template_count() -> int:
+    """
+    Return the total number of users who have set a custom 'template'.
+    """
+    return users_collection.count_documents({"template": {"$exists": True}})
+
+def get_imdb_template_count() -> int:
+    """
+    Return the total number of users who have set a custom 'imdb_template'.
+    """
+    return users_collection.count_documents({"imdb_template": {"$exists": True}})
+
+def get_all_template_counts() -> dict:
+    """
+    Return both template counts in a single dict.
+    """
+    return {
+        "template_count": get_template_count(),
+        "imdb_template_count": get_imdb_template_count(),
+    }

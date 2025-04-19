@@ -3,16 +3,22 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from bot.db.user_db import set_user_template, get_user_template, remove_user_template
-from bot.permissions.use_bot import user_can_use_bot
+from bot.permissions.use_bot import user_can_use_bot, is_subscribed
 from bot.utils.drama_utils import build_drama_caption
 from pyrogram.enums import ParseMode
 # Sample poster URL (You can replace this with any placeholder image URL)
 SAMPLE_POSTER_URL = "https://placehold.co/600x400/png?text=Sample+Poster"
+channel_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Main Channel", url="https://t.me/kdramaworld_ongoing")]])
 async def set_template_command(client: Client, message: Message):
     """Command to set a user-specific template."""
     user_id = message.from_user.id
-    if not user_can_use_bot(user_id):
+    if not await user_can_use_bot(user_id):
         return await message.reply_text("You are not authorized to use this bot.")
+
+    if not await is_subscribed(client,user_id):
+        return await message.reply_text(
+            text="You have not subscribed to my channel.. Subscribe and send /start again",
+            reply_markup=channel_markup)
 
     parts = message.text.split(" ", 1)
     text = (
@@ -49,42 +55,53 @@ async def set_template_command(client: Client, message: Message):
 
     user_template = parts[1].strip()
     set_user_template(user_id, user_template)
-    await message.reply_text("Your custom MDL template has been saved!")
-    return None
+    return await message.reply_text("Your custom MDL template has been saved!")
+
 
 
 async def get_template_command(client: Client, message: Message):
     """Command to retrieve a user's template."""
     user_id = message.from_user.id
-    if not user_can_use_bot(user_id):
+    if not await user_can_use_bot(user_id):
         return await message.reply_text("You are not authorized to use this bot.")
+    if not await is_subscribed(client,user_id):
+        return await message.reply_text(
+            text="You have not subscribed to my channel.. Subscribe and send /start again",
+            reply_markup=channel_markup)
 
     user_template = get_user_template(user_id)
     if user_template:
-        await message.reply_text(f"Your current MDL template:\n\n<code>{user_template}</code>")
-        return None
+        return await message.reply_text(f"Your current MDL template:\n\n<code>{user_template}</code>")
+
     else:
-        await message.reply_text("You have not set a custom MDL template yet.")
-        return None
+        return await message.reply_text("You have not set a custom MDL template yet.")
+
 
 
 async def remove_template_command(client: Client, message: Message):
     """Command to remove a user's template."""
     user_id = message.from_user.id
-    if not user_can_use_bot(user_id):
+    if not await user_can_use_bot(user_id):
         return await message.reply_text("You are not authorized to use this bot.")
+    if not await is_subscribed(client,user_id):
+        return await message.reply_text(
+            text="You have not subscribed to my channel.. Subscribe and send /start again",
+            reply_markup=channel_markup)
 
     remove_user_template(user_id)
-    await message.reply_text("Your custom MDL template has been removed.")
-    return None
+    return await message.reply_text("Your custom MDL template has been removed.")
 
 
 async def preview_template_command(client: Client, message: Message):
     """Allows the user to preview their current custom template with a sample poster."""
     user_id = message.from_user.id
 
-    if not user_can_use_bot(user_id):
+    if not await user_can_use_bot(user_id):
         return await message.reply_text("You are not authorized to use this bot.")
+    if not await is_subscribed(client,user_id):
+        return await message.reply_text(
+            text="You have not subscribed to my channel.. Subscribe and send /start again",
+            reply_markup=channel_markup)
 
     # Retrieve the user's custom template
     user_template = get_user_template(user_id)
@@ -125,9 +142,8 @@ async def preview_template_command(client: Client, message: Message):
     )
 
     # Send the sample poster with caption
-    await message.reply_photo(
+    return await message.reply_photo(
         photo=SAMPLE_POSTER_URL,
         caption=preview_caption,
         reply_markup=markup
     )
-    return None

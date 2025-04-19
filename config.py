@@ -13,6 +13,7 @@ API_HASH = os.getenv("API_HASH", "").strip()
 OWNER_ID = os.getenv("OWNER_ID", "").strip()
 IS_PUBLIC_ENV = os.getenv("IS_PUBLIC", "false").lower() == "true"
 FORCE_SUB_CHANNEL_ID = os.getenv("FORCE_SUB_CHANNEL_ID", "").strip()
+FORCE_SUB_CHANNEL_URL = os.getenv("FORCE_SUB_CHANNEL_URL", "https://t.me/kdramaworld_ongoing").strip()
 # MongoDB
 MONGO_URI = os.getenv("MONGO_URI", "").strip()
 DB_NAME = os.getenv("DB_NAME", "mydramalist_bot_db").strip()
@@ -45,6 +46,10 @@ def validate_config():
         for var in missing_vars:
             print(f"- {var}")
         print("\nPlease check your `config.env` file and set the required values.")
+        sys.exit(1)
+
+    if FORCE_SUB_CHANNEL_ID and not FORCE_SUB_CHANNEL_URL:
+        print("\n[ERROR] Force sub channel URL required if using `FORCE_SUB_CHANNEL_ID`.")
         sys.exit(1)
 
 

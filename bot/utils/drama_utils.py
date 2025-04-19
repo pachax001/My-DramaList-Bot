@@ -5,37 +5,9 @@ import certifi
 import html
 from config import API_URL, DETAILS_API_URL
 from bot.db.user_db import get_user_template
-# Genre -> Emoji Mappings
-GENRE_EMOJI = {
-    "Action": "🚀",
-    "Adult": "🔞",
-    "Adventure": "🌋",
-    "Animation": "🎠",
-    "Biography": "📜",
-    "Comedy": "🪗",
-    "Crime": "🔪",
-    "Documentary": "🎞",
-    "Drama": "🎭",
-    "Family": "👨‍👩‍👧‍👦",
-    "Fantasy": "🫧",
-    "Film Noir": "🎯",
-    "Game Show": "🎮",
-    "History": "🏛",
-    "Horror": "🧟",
-    "Musical": "🎻",
-    "Music": "🎸",
-    "Mystery": "🧳",
-    "News": "📰",
-    "Reality-TV": "🖥",
-    "Romance": "🥰",
-    "Sci-Fi": "🌠",
-    "Short": "📝",
-    "Sport": "⛳",
-    "Talk-Show": "👨‍🍳",
-    "Thriller": "🗡",
-    "War": "⚔",
-    "Western": "🪩",
-}
+from bot.utils.uitlities import GENRE_EMOJI
+from bot.logger.logger import logger
+
 
 
 def filter_dramas(query: str) -> list:

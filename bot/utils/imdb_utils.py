@@ -2,36 +2,8 @@ import imdb
 import html
 from bot.logger.logger import logger
 from bot.db.user_db import get_user_imdb_template
-GENRE_EMOJI = {
-    "Action": "🚀",
-    "Adult": "🔞",
-    "Adventure": "🌋",
-    "Animation": "🎠",
-    "Biography": "📜",
-    "Comedy": "🪗",
-    "Crime": "🔪",
-    "Documentary": "🎞",
-    "Drama": "🎭",
-    "Family": "👨‍👩‍👧‍👦",
-    "Fantasy": "🫧",
-    "Film Noir": "🎯",
-    "Game Show": "🎮",
-    "History": "🏛",
-    "Horror": "🧟",
-    "Musical": "🎻",
-    "Music": "🎸",
-    "Mystery": "🧳",
-    "News": "📰",
-    "Reality-TV": "🖥",
-    "Romance": "🥰",
-    "Sci-Fi": "🌠",
-    "Short": "📝",
-    "Sport": "⛳",
-    "Talk-Show": "👨‍🍳",
-    "Thriller": "🗡",
-    "War": "⚔",
-    "Western": "🪩",
-}
+from bot.utils.uitlities import GENRE_EMOJI
+
 
 ia = imdb.Cinemagoer()
 
