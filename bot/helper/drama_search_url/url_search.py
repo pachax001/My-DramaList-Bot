@@ -1,4 +1,6 @@
 import re
+
+import asyncio
 from pyrogram import Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from bot.utils.drama_utils import get_drama_details, build_drama_caption
@@ -22,6 +24,7 @@ async def handle_drama_url(client: Client, message: Message):
         add_or_update_user(user_id, username, full_name)
         # Validate MyDramaList URL
         processing_message = await message.reply_text("Processing Your Request...⚙️")
+        await asyncio.sleep(2)
         if message.reply_to_message and message.reply_to_message.text:
             replied_text = message.reply_to_message.text or ""
             mydramalist_regex = r"https://mydramalist.com/\d+-\S+"
@@ -33,7 +36,7 @@ async def handle_drama_url(client: Client, message: Message):
         else:
             parts = message.text.split(" ", 1)
             if len(parts) < 2:
-                return await message.reply_text("Usage: /mdlurl MyDramaList_URL or re[ly to the url with the command")
+                return await processing_message.edit_text("Usage: /mdlurl MyDramaList_URL or reply to the url with the command")
             drama_link = parts[1].strip()
             mydramalist_regex = r"https://mydramalist.com/\d+-\S+"
             if not re.match(mydramalist_regex, drama_link):

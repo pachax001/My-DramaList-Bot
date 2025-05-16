@@ -1,4 +1,6 @@
 import re
+
+import asyncio
 from pyrogram import Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from bot.utils.imdb_utils import build_imdb_caption
@@ -23,6 +25,7 @@ async def handle_imdb_url(client: Client, message: Message):
                 reply_markup=channel_markup)
         add_or_update_user(user_id, username, full_name)
         processing_message = await message.reply_text("Processing Your Request...⚙️")
+        await asyncio.sleep(2)
         if message.reply_to_message and message.reply_to_message.text:
             replied_text = message.reply_to_message.text or ""
             imdb_regex = r"https?://(?:www\.)?imdb\.com/title/tt\d{7,8}"
@@ -34,7 +37,7 @@ async def handle_imdb_url(client: Client, message: Message):
         else:
             parts = message.text.split(" ", 1)
             if len(parts) < 2:
-                return await message.reply_text("Usage: /imdburl IMDB_URL or reply to IMDB URL")
+                return await processing_message.edit_text("Usage: /imdburl IMDB_URL or reply to IMDB URL")
 
             imdb_link = parts[1].strip()
             imdb_regex = r"https?://(?:www\.)?imdb\.com/title/tt\d{7,8}"

@@ -4,18 +4,21 @@ from pyrogram.enums import ParseMode
 from bot.db.user_db import get_all_users
 from bot.logger.logger import logger
 from bot.db.broadcast_db import log_broadcast_result
+from pyrogram.types import Message
 # Configure logging
 
 
-async def broadcast_to_users(client: Client, message: str, batch_size=20, delay=1.5):
+async def broadcast_to_users(client: Client, message: dict, broadcast_message: Message ,batch_size=20, delay=1.5, ):
     """
     Broadcast messages to all users in batches to avoid hitting Telegram's rate limits.
     
     Args:
         client (Client): The Pyrogram client.
         message (str): The message to be sent.
+        broadcast_message (str): The message with broadcasting details.
         batch_size (int): Number of users to send messages to in each batch.
         delay (float): Delay (in seconds) between each batch to avoid flooding.
+
     """
     users = list(get_all_users())  # Convert cursor to list
     total_users = len(users)
@@ -24,6 +27,8 @@ async def broadcast_to_users(client: Client, message: str, batch_size=20, delay=
     failed_users = []
 
     logger.info(f"📢 Starting broadcast to {total_users} users in batches of {batch_size}...")
+    await client.edit_message_text(chat_id=broadcast_message.chat.id,message_id=broadcast_message.id,text=f"📢 Broadcasting to {total_users} users in batches of {batch_size}...")
+
 
     # Process users in batches
     for i in range(0, total_users, batch_size):
@@ -32,7 +37,7 @@ async def broadcast_to_users(client: Client, message: str, batch_size=20, delay=
         
         for user in batch:
             user_id = user["user_id"]
-            tasks.append(send_message(client, user_id, message, failed_users))
+            tasks.append(send_media_message(client, user_id, message, failed_users))
 
         # Execute tasks concurrently
         results = await asyncio.gather(*tasks)
@@ -48,8 +53,11 @@ async def broadcast_to_users(client: Client, message: str, batch_size=20, delay=
 
     logger.info(f"✅ Broadcast completed: {sent_count} messages sent, {failed_count} failed.")
 
+    await asyncio.sleep(2)
+    await client.edit_message_text(chat_id=broadcast_message.chat.id,message_id=broadcast_message.id,text=f"✅ Broadcast completed: {sent_count} messages sent, {failed_count} failed.")
+
     # Log broadcast results in database
-    log_broadcast_result(message, sent_count, failed_count, failed_users)
+    await log_broadcast_result(message, sent_count, failed_count, failed_users)
 
 async def send_message(client, user_id, message, failed_users):
     """
@@ -73,3 +81,40 @@ async def send_message(client, user_id, message, failed_users):
         return False
 
 
+async def send_media_message(client, user_id, content, failed_users):
+    """Handle different media types with HTML formatting"""
+    try:
+        if content['media_type'] == 'text':
+            await client.send_message(
+                chat_id=user_id,
+                text=content['text'],
+                parse_mode=ParseMode.HTML
+            )
+        elif content['media_type'] == 'photo':
+            await client.send_photo(
+                chat_id=user_id,
+                photo=content['media_file'],
+                caption=content.get('caption', ''),
+                parse_mode=ParseMode.HTML
+            )
+        elif content['media_type'] == 'video':
+            await client.send_video(
+                chat_id=user_id,
+                video=content['media_file'],
+                caption=content.get('caption', ''),
+                parse_mode=ParseMode.HTML,
+                supports_streaming=True
+            )
+        elif content['media_type'] == 'document':
+            await client.send_document(
+                chat_id=user_id,
+                document=content['media_file'],
+                caption=content.get('caption', ''),
+                parse_mode=ParseMode.HTML
+            )
+        # Add more media types as needed
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send {content['media_type']} to {user_id}: {e}")
+        failed_users.append(user_id)
+        return False

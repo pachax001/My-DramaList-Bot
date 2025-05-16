@@ -1,3 +1,4 @@
+import asyncio
 from pyrogram import Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from config import OWNER_ID, FORCE_SUB_CHANNEL_URL
@@ -7,7 +8,7 @@ from bot.db.user_db import add_or_update_user,get_total_users,get_recent_users, 
 from bot.logger.logger import logger
 from bot.db.config_db import set_public_mode,get_public_mode
 from bot.helper.user_management.broadcast import broadcast_to_users
-from pyrogram.enums import ParseMode
+from pyrogram.enums import  ParseMode
 OWNER_PROFILE_URL = "https://t.me/gunaya001contactbot"
 SOURCE_CODE_URL = "https://github.com/pachax001/My-DramaList-Bot"
 channel_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Main Channel", url=FORCE_SUB_CHANNEL_URL)]])
@@ -201,21 +202,68 @@ async def set_public_mode_command(client: Client, message: Message):
 
 
 
+# async def manual_broadcast_command(client: Client, message: Message):
+#     """Broadcast custom messages to all users."""
+#     if message.from_user.id != OWNER_ID:
+#         return await message.reply_text("❌ You are not authorized to use this command.")
+#
+#     if message.reply_to_message:
+#         custom_message = message.reply_to_message.text or message.reply_to_message.caption
+#         if not custom_message:
+#             return await message.reply_text("⚙️ The replied message does not contain any text to broadcast.")
+#
+#     else:
+#         parts = message.text.split(" ", 1)
+#         if len(parts) < 2:
+#             return await message.reply_text("⚙️ Usage: /broadcast message")
+#         custom_message = parts[1]
+#     await broadcast_to_users(client, custom_message)
+#     return await message.reply_text("✅ Message has been broadcasted successfully.")
+
 async def manual_broadcast_command(client: Client, message: Message):
-    """Broadcast custom messages to all users."""
+    """Handle media broadcast commands"""
     if message.from_user.id != OWNER_ID:
-        return await message.reply_text("❌ You are not authorized to use this command.")
+        return await message.reply_text("❌ Unauthorized")
+
+    content = {'media_type': 'text'}
 
     if message.reply_to_message:
-        custom_message = message.reply_to_message.text or message.reply_to_message.caption
-        if not custom_message:
-            return await message.reply_text("⚙️ The replied message does not contain any text to broadcast.")
+        msg = message.reply_to_message
+        content['caption'] = msg.caption or ""
+        #content['parse_mode'] = ParseMode.HTML
 
+        if msg.text:
+            content.update({
+                'media_type': 'text',
+                'text': msg.text
+            })
+        elif msg.photo:
+            content.update({
+                'media_type': 'photo',
+                'media_file': msg.photo.file_id
+            })
+        elif msg.video:
+            content.update({
+                'media_type': 'video',
+                'media_file': msg.video.file_id
+            })
+        elif msg.document:
+            content.update({
+                'media_type': 'document',
+                'media_file': msg.document.file_id
+            })
+        else:
+            return await message.reply_text("❌ Unsupported media type")
     else:
-        parts = message.text.split(" ", 1)
-        if len(parts) < 2:
-            return await message.reply_text("⚙️ Usage: /broadcast message")
-        custom_message = parts[1]
-    await broadcast_to_users(client, custom_message)
-    return await message.reply_text("✅ Message has been broadcasted successfully.")
+        text = message.text.split(" ", 1)
+        if len(text) < 2:
+            return await message.reply_text("⚙️ Usage: /broadcast (message or reply to media)")
+        content.update({
+            'text': text[1],
+            'media_type': 'text'
+        })
+    broadcast_message = await message.reply_text(f"✅ Broadcast started! Media type: {content['media_type']}")
+    await asyncio.sleep(2)
+    return await broadcast_to_users(client, content,broadcast_message)
+
 
