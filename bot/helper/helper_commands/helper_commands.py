@@ -9,8 +9,9 @@ from bot.logger.logger import logger
 from bot.db.config_db import set_public_mode,get_public_mode
 from bot.helper.user_management.broadcast import broadcast_to_users
 from pyrogram.enums import  ParseMode
-OWNER_PROFILE_URL = "https://t.me/gunaya001contactbot"
+OWNER_PROFILE_URL = "https://t.me/matthewmurdockbot"
 SOURCE_CODE_URL = "https://github.com/pachax001/My-DramaList-Bot"
+ADULT_CONTENT_CHANNEL = "https://t.me/eseoaOF"
 channel_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Main Channel", url=FORCE_SUB_CHANNEL_URL)]])
 async def start_command(client: Client, message: Message):
     user_id = message.from_user.id
@@ -36,7 +37,9 @@ async def start_command(client: Client, message: Message):
         )
         keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("💻 Source Code", url=SOURCE_CODE_URL)],
-        [InlineKeyboardButton("Search Inline (Only MyDramalist)", switch_inline_query_current_chat="")]
+        [InlineKeyboardButton("Search Inline (Only MyDramalist)", switch_inline_query_current_chat="")],
+        [InlineKeyboardButton("🔞 Adult Content Channel", url=ADULT_CONTENT_CHANNEL)],
+        [InlineKeyboardButton("🍺 Buy Me A Beer", url="https://buymeacoffee.com/matthewmurdock001")],
     ])
     else:
         if await user_can_use_bot(user_id):
@@ -53,13 +56,17 @@ async def start_command(client: Client, message: Message):
                     "🔍 <b>Search on IMDB:</b> <code>/imdb &lt;query&gt;</code>\n"
                     "🔗 <b>Get Details by Mydramalist URL:</b> <code>/mdlurl &lt;mydramalistURL&gt; or reply to URL</code>\n"
                     "🔗 <b>Get Details by IMDB URL:</b> <code>/imdburl &lt;imdbURL&gt; or reply to URL</code>\n\n"
-                    "📄 Use /help to explore all available commands."
+                    "📄 Use /help to explore all available commands.\n"
+                    "❗This is not a content giving or file giving bot. This just gives you the details of the movie or drama. It does not provide any files or content. Use at your own risk.\n"
+                    "📁For getting files use @filefilter001bot or @filefilter0012bot"
                 )
 
                 keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("Search Inline (Only MyDramalist)", switch_inline_query_current_chat="")],
                     [InlineKeyboardButton("Help", callback_data="help_command")],
                     [InlineKeyboardButton("K-Drama Channel", url=FORCE_SUB_CHANNEL_URL)],
+                    [InlineKeyboardButton("🔞 Adult Content Channel", url=ADULT_CONTENT_CHANNEL)],
+                    [InlineKeyboardButton("🍺 Buy Me A Beer", url="https://buymeacoffee.com/matthewmurdock001")],
 
                 ])
         else:
@@ -71,6 +78,8 @@ async def start_command(client: Client, message: Message):
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("Contact Owner", url=OWNER_PROFILE_URL)],
                 [InlineKeyboardButton("K-Drama Channel", url=FORCE_SUB_CHANNEL_URL)],
+                [InlineKeyboardButton("🔞 Adult Content Channel", url=ADULT_CONTENT_CHANNEL)],
+                [InlineKeyboardButton("🍺 Buy Me A Beer", url="https://buymeacoffee.com/matthewmurdock001")],
             ])
     return await message.reply_text(text, reply_markup=keyboard)
 
@@ -136,6 +145,8 @@ async def help_command(client: Client, message: Message):
                 [InlineKeyboardButton("👤 Owner", url=OWNER_PROFILE_URL)],
                 [InlineKeyboardButton("💻 Source Code", url=SOURCE_CODE_URL)],
                 [InlineKeyboardButton("K-Drama Channel", url=FORCE_SUB_CHANNEL_URL)],
+                [InlineKeyboardButton("🔞 Adult Content Channel", url=ADULT_CONTENT_CHANNEL)],
+                [InlineKeyboardButton("🍺 Buy Me A Beer", url="https://buymeacoffee.com/matthewmurdock001")],
 
             ])
 
