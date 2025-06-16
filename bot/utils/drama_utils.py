@@ -15,12 +15,26 @@ def filter_dramas(query: str) -> list:
     Searches for dramas with the external API using API_URL.
     Returns a list of drama dicts (title, year, slug, thumb, etc.).
     """
-    session = requests.Session()
-    session.verify = certifi.where()
-    response = session.get(API_URL.format(query),headers={'User-Agent': 'Mozilla/5.0'})
-    if response.status_code == 200:
+    try:
+        session = requests.Session()
+        session.verify = certifi.where()
+        response = session.get(API_URL.format(query), headers={'User-Agent': 'Mozilla/5.0'})
+        response.raise_for_status()  # raise HTTPError for bad status codes
+
         data = response.json()
+        logger.info(f"Found {len(data)} dramas in {query}")
         return data.get("results", {}).get("dramas", [])
+
+    except requests.RequestException as e:
+        # network problem / non-2xx status / DNS failure / etc.
+       logger.error("Error in filter_dramas: {}".format(e))
+    except ValueError as e:
+        # JSON decoding failed
+        logger.error("Error in filter_dramas: {}".format(e))
+
+    except Exception as e:
+        logger.error("Error in filter_dramas: {}".format(e))
+    # on any exception, return empty list
     return []
 
 
@@ -29,12 +43,29 @@ def get_drama_details(slug: str) -> dict:
     Fetches detailed info for a specific drama from DETAILS_API_URL.
     Returns a dict or empty if fails.
     """
-    session = requests.Session()
-    session.verify = certifi.where()
-    response = session.get(DETAILS_API_URL.format(slug),headers={'User-Agent': 'Mozilla/5.0'})
-    if response.status_code == 200:
+    try:
+        session = requests.Session()
+        session.verify = certifi.where()
+        response = session.get(
+            DETAILS_API_URL.format(slug),
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        response.raise_for_status()  # raises HTTPError for bad HTTP statuses
+
         data = response.json()
+        logger.debug("Drama details: {}".format(data))
         return data.get("data", {})
+
+    except requests.RequestException as e:
+        # network problem / non-2xx status / DNS failure / etc.
+        logger.error("Error in get_drama_details: {}".format(e))
+    except ValueError as e:
+        # JSON parsing failed
+        logger.error("Error in get_drama_details: {}".format(e))
+    except Exception as e:
+        logger.error("Error in get_drama_details: {}".format(e))
+
+    # on any exception, return empty dict
     return {}
 
 
