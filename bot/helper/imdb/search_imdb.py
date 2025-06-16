@@ -107,16 +107,17 @@ async def imdb_details_callback(bot: Client, update: CallbackQuery):
 
         imdb_data = get_details_by_imdb_id(imdb_id)
         logger.info(f"Retrieved imdb details for slug: {imdb_id}")
-        #logger.info(f"Found {imdb_data} imdb details")
+        logger.info(f"Found {imdb_data} imdb details")
 
         if not imdb_data:
             await bot.send_message(
                 chat_id=update.message.chat.id,
-                text="Failed to fetch drama details."
+                text="Failed to fetch imdb details."
             )
             return
         caption =build_imdb_caption(user_id, imdb_data)
         poster = imdb_data.get("poster")
+        logger.info(f"Found poster {poster}")
         markup = InlineKeyboardMarkup(
             [[InlineKeyboardButton("🚫 Close", callback_data="close_search")]]
         )
@@ -141,7 +142,7 @@ async def imdb_details_callback(bot: Client, update: CallbackQuery):
         logger.error(f"MediaCaptionTooLong: {e}")
         return await bot.send_message(text=f"Failed to fetch IMDB details. Caption is too long for image. Please reduce caption and try again.",chat_id=update.message.chat.id)
     except Exception as e:
-        logger.error(f"Error in drama_details_callback: {e}")
+        logger.error(f"Error in imdb_details_callback: {e}")
         return await bot.send_message(
             chat_id=update.message.chat.id,
             text="An error occurred. Please try again later."

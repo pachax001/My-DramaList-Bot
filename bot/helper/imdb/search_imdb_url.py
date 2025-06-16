@@ -70,6 +70,6 @@ async def handle_imdb_url(client: Client, message: Message):
         return await message.reply_text(
             f"Failed to fetch IMDB details. Caption is too long for image. Please reduce caption and try again.")
     except Exception as e:
-        logger.error(f"Error in drama_details_callback: {e}")
+        logger.error(f"Error in handle_imdb_url: {e}")
         return await message.reply_text("Error Occurred. Please try again later.")
 

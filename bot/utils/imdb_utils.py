@@ -23,8 +23,8 @@ def build_imdb_caption(user_id: int, drama_data: dict) -> str:
     Generates an HTML caption from IMDB drama_data dict.
     Only uses the fields present in drama_data.
     """
-    #logger.debug(f"building caption for user {user_id}")
-    #logger.info(f"drama_data: {drama_data}")
+    logger.debug(f"building caption for user {user_id}")
+    logger.info(f"drama_data: {drama_data}")
     # helper to safely grab a field or fallback
     def get(key, default="N/A"):
         return drama_data.get(key, default)
