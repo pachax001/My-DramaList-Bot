@@ -96,7 +96,7 @@ def build_drama_caption(user_id: int, drama_data: dict, slug: str) -> str:
 
     native_title = get_nested_field(others, "native_title")
     also_known_as = ", ".join(get_field(others, "also_known_as", [])) or "N/A"
-    storyline = html.escape(get_field(drama_data, "synopsis"))[:100] + "..."
+    storyline = html.escape(get_field(drama_data, "synopsis"))[:40] + "..."
 
     # Process genres with emojis
     genres_list = get_field(others, "genres", [])

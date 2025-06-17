@@ -16,6 +16,7 @@ def get_details_by_imdb_id(imdb_id):
     movie = ia.get_movie(imdb_id)
     logger.info(f"Retrieved imdb details for imdb_id: {imdb_id}")
     logger.info(f"Found {movie} imdb details")
+    
 
     # Release date fallback
     if movie.get("original air date"):
