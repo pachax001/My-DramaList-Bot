@@ -16,7 +16,7 @@ if os.name == "posix":
             uvloop.install()
     except Exception:
         pass  # Continue without uvloop if unavailable
-from pyrogram.handlers import MessageHandler, InlineQueryHandler, ChosenInlineResultHandler, CallbackQueryHandler
+from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 
 # Infrastructure
 from infra.config import settings
@@ -33,8 +33,7 @@ from app.commands import BotCommandManager
 from adapters.telegram.handlers.auth_handlers import authorize_cmd, unauthorize_cmd, list_users_cmd
 from adapters.telegram.handlers.basic_handlers import start_command, send_log, help_command, user_stats_command, set_public_mode_command, manual_broadcast_command, cache_reload_command
 from adapters.telegram.handlers.search_handlers import (search_dramas_command, drama_details_callback, close_search_results,
-    search_imdb, imdb_details_callback, handle_drama_url, handle_imdb_url,
-    handle_inline_query, handle_chosen_inline_result)
+    search_imdb, imdb_details_callback, handle_drama_url, handle_imdb_url)
 from adapters.telegram.handlers.template_handlers import (set_template_command, get_template_command, remove_template_command, preview_template_command,
     set_imdb_template_command, get_imdb_template_command, remove_imdb_template_command, preview_imdb_template_command,
     mdl_placeholders_command, imdb_placeholders_command)
@@ -156,9 +155,6 @@ class HighPerformanceBot:
         self.app.add_handler(MessageHandler(manual_broadcast_command, filters.command("broadcast") & filters.user(settings.owner_id)))
         self.app.add_handler(MessageHandler(cache_reload_command, filters.command("cachereload") & filters.user(settings.owner_id)))
         
-        # Inline handlers
-        self.app.add_handler(InlineQueryHandler(handle_inline_query))
-        self.app.add_handler(ChosenInlineResultHandler(handle_chosen_inline_result))
         
         # Health check handler
         @self.app.on_message(filters.command("health") & filters.user(settings.owner_id))

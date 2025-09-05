@@ -11,9 +11,6 @@
 
 ## ✨ **What's New in v2.1**
 
-- 🔍 **Enhanced Inline Search** - Full thumbnail support with poster images in inline results
-- 🎯 **Smart Inline Results** - Click inline results to get formatted templates with full drama details  
-- 🖼️ **Poster Display** - Automatic poster image sharing when selecting inline search results
 - 🧹 **Code Optimization** - Removed unused code, optimized imports, and improved performance
 - 🛠️ **Better Log Management** - Improved `/log` command with automatic log file detection
 - 🚀 **Auto-Update System** - Automatic code updates from GitHub with backup/restore
@@ -46,15 +43,6 @@
 - `/removeimdbtemplate` - Remove your custom IMDB template.
 - `/previeiwmdbtemplate` - Preview your custom IMDB template.
 
-### **Enhanced Inline Search** ✨ **NEW**
-- 🔍 **Smart Search** - Search dramas inline in any chat using `@username_of_your_bot <query>`
-- 🖼️ **Poster Thumbnails** - See drama posters directly in inline search results
-- 🎯 **Click for Details** - Click any result to get full formatted template with poster
-- ⚡ **Instant Results** - Fast search with poster previews and ratings
-- 📱 **Works Everywhere** - Use in any chat, group, or channel
-- Example: `@mydramalist001bot Vincenzo` - Shows thumbnails, click for full details!
-
-> **Note**: Enable inline mode in [@BotFather](https://t.me/BotFather) → Bot Settings → Inline Mode
 
 ### **Admin Commands** (Owner Only)
 - `/authorize <user_id>` - Grant access to a specific user
@@ -71,44 +59,6 @@
 
 ### **Force Sub**
 - You can now enable force subscription for a channel. Make sure bot is an admin of the channel.
-
----
-
-## 🔍 **Enhanced Inline Search Guide** ✨
-
-### **How to Use Inline Search**
-1. **Enable Inline Mode** in [@BotFather](https://t.me/BotFather):
-   - Go to Bot Settings → Inline Mode → Turn on
-2. **Search Anywhere**: Type `@yourbotname query` in any chat
-3. **See Thumbnails**: Browse results with poster images and ratings
-4. **Click for Details**: Tap any result to get full formatted information
-
-### **What You'll See**
-- 🖼️ **Drama Posters** as thumbnails in search results
-- ⭐ **Ratings** displayed right in the search preview
-- 🎭 **Title & Year** clearly shown for each result
-- 📺 **Instant Preview** - "Click to view full details..." text
-
-### **What Happens When You Click**
-- ✨ **Auto-Updates** the message with complete drama information
-- 🖼️ **Shows Full Poster** image (if available)
-- 📋 **Formatted Template** with all details (cast, synopsis, episodes, etc.)
-- 🎨 **Uses Your Custom Template** (if you've set one)
-
-### **Inline Search Features**
-- **Rate Limited** - Prevents spam (5 searches per minute)
-- **Authorization Aware** - Respects public/private mode settings
-- **Fallback Support** - Sends to private chat if inline editing fails
-- **Error Handling** - Graceful degradation for broken poster URLs
-- **Performance Optimized** - Fast search with 10 results max
-
-### **Example Workflow**
-```
-1. Type: @mydramalistbot goblin
-2. See: Multiple results with poster thumbnails
-3. Click: "Guardian: The Lonely and Great God (2016)"
-4. Get: Full poster + formatted details instantly shared in chat
-```
 
 ---
 
@@ -452,8 +402,9 @@ The bot follows a layered architecture pattern for high performance and maintain
 - **Rate Limiting**: Token bucket algorithm with distributed Redis backing
 - **Thread Pool**: Non-blocking execution for synchronous operations
 - **Circuit Breakers**: Fault tolerance with exponential backoff
-- **Code Optimization** ✨: Removed unused imports, dead code, and optimized dependencies
+- **Code Optimization** ✨: Removed unused imports, dead code, and optimized dependencies  
 - **Enhanced Logging** ✨: Smart log file detection with automatic cleanup for large files
+- **Streamlined Architecture**: Reduced complexity and improved maintainability
 
 ---
 
@@ -503,29 +454,6 @@ docker-compose logs mydramalist-bot | grep -i update
 docker exec mydramalist-bot python3 update.py --rollback backups/latest_backup
 ```
 
-#### **Inline Search Not Working**
-```bash
-# Check if inline mode is enabled in BotFather
-# Go to @BotFather → Your Bot → Bot Settings → Inline Mode → ON
-
-# Verify inline handlers are registered
-docker-compose logs mydramalist-bot | grep "inline"
-
-# Test inline query manually
-# Type @yourbotname test in any chat
-```
-
-#### **Thumbnails Not Showing in Inline Results**
-```bash
-# Check poster URLs in search results
-docker-compose logs mydramalist-bot | grep "poster"
-
-# Verify image URLs are accessible
-# Check if drama posters load in browser
-
-# Check for photo result errors
-docker-compose logs mydramalist-bot | grep "Photo result failed"
-```
 
 #### **Performance Issues**
 ```bash
@@ -643,12 +571,11 @@ This project is licensed under the **MIT License**. See the [LICENSE](./LICENSE)
 ## 🚀 **Version History**
 
 ### **v2.1** (Latest) ✨
-- Enhanced inline search with poster thumbnails
-- Smart inline results that show formatted templates on click
-- Automatic poster image display in inline results
 - Code optimization and cleanup (removed unused code/imports)
-- Improved log management with smart file detection
+- Improved log management with smart file detection  
 - Better error handling and fallback mechanisms
+- Streamlined codebase for better performance
+- Enhanced stability and reduced memory usage
 
 ### **v2.0** 
 - Auto-update system with backup/restore

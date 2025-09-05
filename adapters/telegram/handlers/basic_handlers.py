@@ -53,7 +53,6 @@ async def start_command(client: Client, message: Message):
         
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("💻 Source Code", url="https://github.com/pachax001/My-DramaList-Bot")],
-            [InlineKeyboardButton("Search Inline (MyDramaList)", switch_inline_query_current_chat="")],
             [InlineKeyboardButton("🍺 Buy Me A Beer", url="https://buymeacoffee.com/matthewmurdock001")]
         ])
         
@@ -73,7 +72,7 @@ async def start_command(client: Client, message: Message):
         )
         
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Search Inline (MyDramaList)", switch_inline_query_current_chat="")]
+            [InlineKeyboardButton("💻 Source Code", url="https://github.com/pachax001/My-DramaList-Bot")]
         ])
 
     await message.reply_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
@@ -107,8 +106,6 @@ async def help_command(client: Client, message: Message):
 /previewimdbtemplate - Preview your IMDB template
 /imdbplaceholders - Show all IMDB placeholders
 
-**📱 Inline Search:**
-Type `@botusername <query>` in any chat to search MyDramaList inline
 
 **👑 Owner Commands:**
 /authorize <user_id> - Grant bot access
