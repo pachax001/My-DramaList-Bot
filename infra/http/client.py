@@ -19,12 +19,7 @@ class HTTPClient:
     
     def __init__(self) -> None:
         self._session: Optional[ClientSession] = None
-        self._connector = aiohttp.TCPConnector(
-            limit=settings.max_connections,
-            limit_per_host=30,
-            ttl_dns_cache=300,
-            use_dns_cache=True,
-        )
+        self._connector: Optional[aiohttp.TCPConnector] = None
     
     async def __aenter__(self) -> "HTTPClient":
         await self.start()
@@ -36,6 +31,15 @@ class HTTPClient:
     async def start(self) -> None:
         """Initialize the HTTP session."""
         if self._session is None:
+            # Create connector when event loop is running
+            if self._connector is None:
+                self._connector = aiohttp.TCPConnector(
+                    limit=settings.max_connections,
+                    limit_per_host=30,
+                    ttl_dns_cache=300,
+                    use_dns_cache=True,
+                )
+            
             timeout = ClientTimeout(total=settings.http_timeout)
             self._session = ClientSession(
                 connector=self._connector,
