@@ -119,8 +119,9 @@ async def search_dramas_command(client: Client, message: Message) -> None:
         keyboard.append([InlineKeyboardButton("🚫 Close", callback_data="close_search")])
         
         await processing_msg.edit_text(
-            f"🎭 Found {len(dramas)} dramas for **{query_or_url}**:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            f"🎭 Found {len(dramas)} dramas for <b>{query_or_url}</b>:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.HTML
         )
         
     except Exception as e:
@@ -265,8 +266,9 @@ async def search_imdb(client: Client, message: Message) -> None:
         keyboard.append([InlineKeyboardButton("🚫 Close", callback_data="close_search")])
         
         await processing_msg.edit_text(
-            f"🎬 Found {len(movies)} movies for **{query_or_url}**:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            f"🎬 Found {len(movies)} movies for <b>{query_or_url}</b>:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.HTML
         )
         
     except Exception as e:

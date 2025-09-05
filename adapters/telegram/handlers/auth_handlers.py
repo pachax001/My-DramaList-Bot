@@ -2,6 +2,7 @@
 
 from pyrogram import Client
 from pyrogram.types import Message
+from pyrogram.enums import ParseMode
 from infra.config import settings
 from infra.logging import get_logger
 from infra.db import mongo_client
@@ -86,12 +87,12 @@ async def list_users_cmd(client: Client, message: Message):
         total_users = await mongo_client.db.users.count_documents({})
         
         if authorized_users:
-            user_list = "\n".join([f"• {uid}" for uid in authorized_users])
-            text = f"👥 **Authorized Users** ({len(authorized_users)}):\n{user_list}\n\n📊 Total registered users: {total_users}"
+            user_list = "\n".join([f"• <code>{uid}</code>" for uid in authorized_users])
+            text = f"👥 <b>Authorized Users</b> ({len(authorized_users)}):\n{user_list}\n\n📊 Total registered users: {total_users}"
         else:
             text = f"ℹ️ No authorized users.\n📊 Total registered users: {total_users}"
         
-        await message.reply_text(text)
+        await message.reply_text(text, parse_mode=ParseMode.HTML)
         
     except Exception as e:
         logger.error(f"Error listing users: {e}")

@@ -297,7 +297,7 @@ async def set_public_mode_command(client: Client, message: Message):
             logger.error(f"Failed to update bot commands: {cmd_error}")
             command_status = "⚠️ Bot commands may need manual restart to update."
         
-        await message.reply_text(f"✅ Public mode has been **{mode_text}**.\n{command_status}")
+        await message.reply_text(f"✅ Public mode has been <b>{mode_text}</b>.\n{command_status}", parse_mode=ParseMode.HTML)
         
     except Exception as e:
         logger.error(f"Error setting public mode: {e}")
@@ -507,7 +507,7 @@ async def manual_broadcast_command(client: Client, message: Message):
         
         # Start broadcast with progress tracking
         broadcast_msg = await message.reply_text(
-            f"📢 **Starting Broadcast**\n"
+            f"📢 <b>Starting Broadcast</b>\n"
             f"👥 Total Users: {total_users:,}\n"
             f"📊 Progress: 0%\n"
             f"📤 Sent: 0\n"
@@ -635,7 +635,7 @@ async def manual_broadcast_command(client: Client, message: Message):
                     
                     try:
                         await broadcast_msg.edit_text(
-                            f"📢 **Broadcasting...**\n"
+                            f"📢 <b>Broadcasting...</b>\n"
                             f"👥 Total Users: {total_users:,}\n"
                             f"📊 Progress: {progress:.1f}%\n"
                             f"📤 Sent: {sent:,}\n"
@@ -666,7 +666,7 @@ async def manual_broadcast_command(client: Client, message: Message):
         success_rate = (sent / total_users) * 100 if total_users > 0 else 0
         
         final_message = (
-            f"✅ **Broadcast Completed!**\n"
+            f"✅ <b>Broadcast Completed!</b>\n"
             f"👥 Total Users: {total_users:,}\n"
             f"📤 Successfully Sent: {sent:,}\n"
             f"❌ Failed: {failed:,}\n"
@@ -967,20 +967,20 @@ async def shell_command(client: Client, message: Message):
         
         if is_dangerous:
             await message.reply_text(
-                f"⚠️ **Potentially Dangerous Command Detected**\n\n"
-                f"**Command:** `{command}`\n\n"
+                f"⚠️ <b>Potentially Dangerous Command Detected</b>\n\n"
+                f"<b>Command:</b> <code>{command}</code>\n\n"
                 f"This command appears to be potentially destructive. "
                 f"Please review carefully before execution.\n\n"
-                f"Reply with `EXECUTE ANYWAY` to proceed or cancel this operation.",
+                f"Reply with <code>EXECUTE ANYWAY</code> to proceed or cancel this operation.",
                 parse_mode=ParseMode.HTML
             )
             return
         
         # Send initial status message
         status_msg = await message.reply_text(
-            f"🐚 **Executing Shell Command**\n\n"
-            f"**Command:** `{command}`\n"
-            f"**Status:** Running...\n\n"
+            f"🐚 <b>Executing Shell Command</b>\n\n"
+            f"<b>Command:</b> <code>{command}</code>\n"
+            f"<b>Status:</b> Running...\n\n"
             f"⏳ Please wait for output...",
             parse_mode=ParseMode.HTML
         )
@@ -1016,9 +1016,9 @@ async def shell_command(client: Client, message: Message):
             
         except Exception as e:
             await status_msg.edit_text(
-                f"🐚 **Shell Command Failed**\n\n"
-                f"**Command:** `{command}`\n"
-                f"**Error:** {str(e)}\n\n"
+                f"🐚 <b>Shell Command Failed</b>\n\n"
+                f"<b>Command:</b> <code>{command}</code>\n"
+                f"<b>Error:</b> {str(e)}\n\n"
                 f"❌ Execution failed before completion",
                 parse_mode=ParseMode.HTML
             )
@@ -1031,36 +1031,36 @@ async def shell_command(client: Client, message: Message):
         # Combine stdout and stderr
         output_parts = []
         if stdout.strip():
-            output_parts.append(f"**📤 STDOUT:**\n```\n{stdout.strip()}\n```")
+            output_parts.append(f"<b>📤 STDOUT:</b>\n<pre>\n{stdout.strip()}\n</pre>")
         if stderr.strip():
-            output_parts.append(f"**📥 STDERR:**\n```\n{stderr.strip()}\n```")
+            output_parts.append(f"<b>📥 STDERR:</b>\n<pre>\n{stderr.strip()}\n</pre>")
         
         if not output_parts:
-            output_text = "*(No output generated)*"
+            output_text = "<i>(No output generated)</i>"
         else:
             output_text = "\n\n".join(output_parts)
         
         # Create result message
-        result_message = f"""🐚 **Shell Command Executed**
+        result_message = f"""🐚 <b>Shell Command Executed</b>
 
-**Command:** `{command}`
-**Status:** {execution_status}
-**Execution Time:** {execution_time:.2f}s
-**Return Code:** {return_code}
+<b>Command:</b> <code>{command}</code>
+<b>Status:</b> {execution_status}
+<b>Execution Time:</b> {execution_time:.2f}s
+<b>Return Code:</b> {return_code}
 
 {output_text}"""
         
         # Handle long outputs
         if len(result_message) > 4096:  # Telegram message limit
             # Send basic info first
-            basic_info = f"""🐚 **Shell Command Executed**
+            basic_info = f"""🐚 <b>Shell Command Executed</b>
 
-**Command:** `{command}`
-**Status:** {execution_status}
-**Execution Time:** {execution_time:.2f}s
-**Return Code:** {return_code}
+<b>Command:</b> <code>{command}</code>
+<b>Status:</b> {execution_status}
+<b>Execution Time:</b> {execution_time:.2f}s
+<b>Return Code:</b> {return_code}
 
-⚠️ **Output too long - sending as file...**"""
+⚠️ <b>Output too long - sending as file...</b>"""
             
             await status_msg.edit_text(basic_info, parse_mode=ParseMode.HTML)
             
@@ -1083,7 +1083,7 @@ async def shell_command(client: Client, message: Message):
             
             await message.reply_document(
                 output_filename,
-                caption=f"📄 Shell command output\n**Command:** `{command}`",
+                caption=f"📄 Shell command output\n<b>Command:</b> <code>{command}</code>",
                 parse_mode=ParseMode.HTML
             )
             
@@ -1099,16 +1099,16 @@ async def shell_command(client: Client, message: Message):
         logger.error(f"Error in shell command: {e}")
         try:
             await status_msg.edit_text(
-                f"🐚 **Shell Command Error**\n\n"
-                f"**Command:** `{command if 'command' in locals() else 'Unknown'}`\n"
-                f"**Error:** {str(e)}\n\n"
+                f"🐚 <b>Shell Command Error</b>\n\n"
+                f"<b>Command:</b> <code>{command if 'command' in locals() else 'Unknown'}</code>\n"
+                f"<b>Error:</b> {str(e)}\n\n"
                 f"❌ Unexpected error occurred",
                 parse_mode=ParseMode.HTML
             )
         except:
             await message.reply_text(
-                f"🐚 **Shell Command Error**\n\n"
-                f"**Error:** {str(e)}\n\n"
+                f"🐚 <b>Shell Command Error</b>\n\n"
+                f"<b>Error:</b> {str(e)}\n\n"
                 f"❌ Failed to execute shell command",
                 parse_mode=ParseMode.HTML
             )
