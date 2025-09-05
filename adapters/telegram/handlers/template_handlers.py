@@ -18,10 +18,11 @@ async def set_template_command(client: Client, message: Message):
     else:
         parts = message.text.split(' ', 1)
         if len(parts) < 2:
-            return await message.reply_text(
+            await message.reply_text(
                 "Usage: /setmdltemplate <template> or reply to a template message\n\n"
                 "Example placeholders: {title}, {rating}, {synopsis}, {country}, {episodes}"
             )
+            return
         template = parts[1]
     
     try:
@@ -84,7 +85,8 @@ async def preview_template_command(client: Client, message: Message):
         template_doc = await mongo_client.db.mdl_templates.find_one({"user_id": user_id})
         
         if not template_doc:
-            return await message.reply_text("ℹ️ You don't have a custom MyDramaList template set.")
+            await message.reply_text("ℹ️ You don't have a custom MyDramaList template set.")
+            return
         
         # Mock data for preview
         mock_data = {
@@ -122,10 +124,11 @@ async def set_imdb_template_command(client: Client, message: Message):
     else:
         parts = message.text.split(' ', 1)
         if len(parts) < 2:
-            return await message.reply_text(
+            await message.reply_text(
                 "Usage: /setimdbtemplate <template> or reply to a template message\n\n"
                 "Example placeholders: {title}, {year}, {rating}, {plot}, {cast}, {director}"
             )
+            return
         template = parts[1]
     
     try:
@@ -188,7 +191,8 @@ async def preview_imdb_template_command(client: Client, message: Message):
         template_doc = await mongo_client.db.imdb_templates.find_one({"user_id": user_id})
         
         if not template_doc:
-            return await message.reply_text("ℹ️ You don't have a custom IMDB template set.")
+            await message.reply_text("ℹ️ You don't have a custom IMDB template set.")
+            return
         
         # Mock data for preview
         mock_data = {

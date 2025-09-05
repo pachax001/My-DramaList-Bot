@@ -133,7 +133,8 @@ Need help? Contact: @matthewmurdockbot
 async def send_log(client: Client, message: Message):
     """Send bot log file to owner."""
     if message.from_user.id != settings.owner_id:
-        return await message.reply_text("❌ Only bot owner can access logs.")
+        await message.reply_text("❌ Only bot owner can access logs.")
+        return
     
     try:
         # Check if log file exists
@@ -158,7 +159,8 @@ async def send_log(client: Client, message: Message):
 async def user_stats_command(client: Client, message: Message):
     """Get user statistics."""
     if message.from_user.id != settings.owner_id:
-        return await message.reply_text("❌ Only bot owner can view statistics.")
+        await message.reply_text("❌ Only bot owner can view statistics.")
+        return
     
     try:
         # Get user statistics
@@ -203,11 +205,13 @@ async def user_stats_command(client: Client, message: Message):
 async def set_public_mode_command(client: Client, message: Message):
     """Toggle public mode on/off."""
     if message.from_user.id != settings.owner_id:
-        return await message.reply_text("❌ Only bot owner can change public mode.")
+        await message.reply_text("❌ Only bot owner can change public mode.")
+        return
     
     parts = message.text.split()
     if len(parts) != 2 or parts[1].lower() not in ['on', 'off']:
-        return await message.reply_text("Usage: /setpublicmode <on/off>")
+        await message.reply_text("Usage: /setpublicmode <on/off>")
+        return
     
     try:
         new_mode = parts[1].lower() == 'on'
@@ -232,7 +236,8 @@ async def set_public_mode_command(client: Client, message: Message):
 async def manual_broadcast_command(client: Client, message: Message):
     """Broadcast message to all users."""
     if message.from_user.id != settings.owner_id:
-        return await message.reply_text("❌ Only bot owner can broadcast messages.")
+        await message.reply_text("❌ Only bot owner can broadcast messages.")
+        return
     
     # Get broadcast content
     if message.reply_to_message:
@@ -243,7 +248,8 @@ async def manual_broadcast_command(client: Client, message: Message):
     else:
         parts = message.text.split(' ', 1)
         if len(parts) < 2:
-            return await message.reply_text("Usage: /broadcast <message> or reply to a message")
+            await message.reply_text("Usage: /broadcast <message> or reply to a message")
+            return
         
         broadcast_content = {
             'media_type': 'text', 
@@ -257,7 +263,8 @@ async def manual_broadcast_command(client: Client, message: Message):
             users.append(user['user_id'])
         
         if not users:
-            return await message.reply_text("❌ No users to broadcast to.")
+            await message.reply_text("❌ No users to broadcast to.")
+            return
         
         # Start broadcast
         broadcast_msg = await message.reply_text(f"📢 Starting broadcast to {len(users)} users...")

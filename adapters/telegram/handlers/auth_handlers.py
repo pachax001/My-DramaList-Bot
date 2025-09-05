@@ -12,11 +12,13 @@ logger = get_logger(__name__)
 async def authorize_cmd(client: Client, message: Message):
     """Authorize a user to use the bot."""
     if message.from_user.id != settings.owner_id:
-        return await message.reply_text("❌ Only bot owner can authorize users.")
+        await message.reply_text("❌ Only bot owner can authorize users.")
+        return
     
     parts = message.text.split()
     if len(parts) != 2:
-        return await message.reply_text("Usage: /authorize <user_id>")
+        await message.reply_text("Usage: /authorize <user_id>")
+        return
     
     try:
         user_id = int(parts[1])
@@ -41,11 +43,13 @@ async def authorize_cmd(client: Client, message: Message):
 async def unauthorize_cmd(client: Client, message: Message):
     """Remove user authorization."""
     if message.from_user.id != settings.owner_id:
-        return await message.reply_text("❌ Only bot owner can unauthorize users.")
+        await message.reply_text("❌ Only bot owner can unauthorize users.")
+        return
     
     parts = message.text.split()
     if len(parts) != 2:
-        return await message.reply_text("Usage: /unauthorize <user_id>")
+        await message.reply_text("Usage: /unauthorize <user_id>")
+        return
     
     try:
         user_id = int(parts[1])
@@ -69,7 +73,8 @@ async def unauthorize_cmd(client: Client, message: Message):
 async def list_users_cmd(client: Client, message: Message):
     """List all authorized users."""
     if message.from_user.id != settings.owner_id:
-        return await message.reply_text("❌ Only bot owner can view user list.")
+        await message.reply_text("❌ Only bot owner can view user list.")
+        return
     
     try:
         # Get authorized users
