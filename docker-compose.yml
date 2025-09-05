@@ -6,7 +6,7 @@ services:
     environment:
       - PYTHONPATH=/usr/src/app
     volumes:
-      - .:/app
+      - .:/usr/src/app
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     depends_on:
