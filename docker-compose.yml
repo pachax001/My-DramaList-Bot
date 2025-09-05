@@ -2,6 +2,29 @@ services:
   mydramalist-bot:
     build: .
     container_name: mydramalist-bot
-    restart: unless-stopped  # Ensure bot restarts on server reboot
+    restart: unless-stopped
+    environment:
+      - PYTHONPATH=/usr/src/app
     volumes:
-      - .:/app  # Mount the app directory for local development
+      - .:/app
+    depends_on:
+      - redis
+    networks:
+      - bot-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: mydramalist-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - bot-network
+
+volumes:
+  redis-data:
+
+networks:
+  bot-network:
+    driver: bridge

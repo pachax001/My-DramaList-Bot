@@ -15,3 +15,6 @@ venv
 
 # python cache
 __pycache__
+
+CLAUDE.md
+.claude/

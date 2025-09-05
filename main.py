@@ -1,298 +1,229 @@
-from pyrogram import Client, filters
-from pyrogram.handlers import (
-    MessageHandler,
-    InlineQueryHandler,
-    ChosenInlineResultHandler,
-    CallbackQueryHandler
-)
+"""High-performance Telegram bot with layered architecture."""
 
-from config import BOT_TOKEN, API_ID, API_HASH, OWNER_ID
-from bot.helper.user_management.user import authorize_cmd, unauthorize_cmd, list_users_cmd
-from bot.helper.helper_commands.helper_commands import start_command, send_log, help_command,user_stats_command,set_public_mode_command,manual_broadcast_command
-from bot.helper.inline_query.inline_search import handle_inline_query, handle_chosen_inline_result
-from bot.helper.search_drama_callback_query.callback_query import (
-    search_dramas_command,
-    drama_details_callback,
-    close_search_results
-)
-from bot.helper.drama_search_url.url_search import handle_drama_url
-from bot.helper.template_management.template_handler import set_template_command, get_template_command, remove_template_command,preview_template_command
-from bot.logger.logger import logger
-from config import initialize_settings
+import asyncio
+import os
+import signal
+import sys
+from typing import NoReturn
+from contextlib import asynccontextmanager
+from pyrogram import Client
 
-from bot.helper.imdb.search_imdb import search_imdb, imdb_pagination_callback, imdb_details_callback
-from bot.helper.template_management.imdb_template import get_imdb_template_command, set_imdb_template_command, remove_imdb_template_command, preview_imdb_template_command
-from bot.helper.imdb.search_imdb_url import handle_imdb_url
-initialize_settings()
+# Enable uvloop on POSIX systems for better performance
+if os.name == "posix":
+    try:
+        import uvloop
+        if sys.platform.startswith(("linux", "darwin")):
+            uvloop.install()
+    except Exception:
+        pass  # Continue without uvloop if unavailable
+from pyrogram.handlers import MessageHandler, InlineQueryHandler, ChosenInlineResultHandler, CallbackQueryHandler
 
-# -------------------------------------------------------------------
-# Bot Initialization
-# -------------------------------------------------------------------
-app = Client(
-    "mydramalist_bot",
-    bot_token=BOT_TOKEN,
-    api_id=API_ID,
-    api_hash=API_HASH
-)
+# Infrastructure
+from infra.config import settings
+from infra.logging import get_logger
+from infra.http import http_client
+from infra.cache import cache_client
+from infra.db import mongo_client
+
+# Middleware
+from app.middleware import monitor_performance, HealthChecker
+
+# Handlers (new architecture)
+from adapters.telegram.handlers.auth_handlers import authorize_cmd, unauthorize_cmd, list_users_cmd
+from adapters.telegram.handlers.basic_handlers import start_command, send_log, help_command, user_stats_command, set_public_mode_command, manual_broadcast_command
+from adapters.telegram.handlers.search_handlers import (search_dramas_command, drama_details_callback, close_search_results,
+    search_imdb, imdb_pagination_callback, imdb_details_callback, handle_drama_url, handle_imdb_url,
+    handle_inline_query, handle_chosen_inline_result)
+from adapters.telegram.handlers.template_handlers import (set_template_command, get_template_command, remove_template_command, preview_template_command,
+    set_imdb_template_command, get_imdb_template_command, remove_imdb_template_command, preview_imdb_template_command)
+from pyrogram import filters
+
+logger = get_logger(__name__)
 
 
-
-# async def start_bot():
-#     logger.info("Starting bot...")
-#     await set_commands()
-#     logger.info("Bot is running...")
+class HighPerformanceBot:
+    """High-performance bot with async lifecycle management."""
     
-
-# -------------------------------------------------------------------
-# Handlers: Authorization (Owner only)
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        authorize_cmd,
-        filters.command("authorize", prefixes="/") & filters.user(OWNER_ID)
-    )
-)
-app.add_handler(
-    MessageHandler(
-        unauthorize_cmd,
-        filters.command("unauthorize", prefixes="/") & filters.user(OWNER_ID)
-    )
-)
-app.add_handler(
-    MessageHandler(
-        list_users_cmd,
-        filters.command("users", prefixes="/") & filters.user(OWNER_ID)
-    )
-)
-
-
-# -------------------------------------------------------------------
-# Handler: /start
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        start_command,
-        filters.command("start", prefixes="/")
-    )
-)
-
-
-# -------------------------------------------------------------------
-# Inline Query Handler
-# -------------------------------------------------------------------
-app.add_handler(
-    InlineQueryHandler(handle_inline_query)
-)
-
-
-# -------------------------------------------------------------------
-# Chosen Inline Result Handler
-# -------------------------------------------------------------------
-app.add_handler(
-    ChosenInlineResultHandler(handle_chosen_inline_result)
-)
-
-
-# -------------------------------------------------------------------
-# Handler: Search
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        search_dramas_command,
-        filters.command("mdl", prefixes="/")
-    )
-)
-
-app.add_handler(
-    MessageHandler(
-        search_imdb,
-        filters.command("imdb", prefixes="/")
-    )
-)
-
-
-# -------------------------------------------------------------------
-# Handler: Details Callback
-# -------------------------------------------------------------------
-app.add_handler(
-    CallbackQueryHandler(
-        drama_details_callback,
-        filters.regex("^details")
-    )
-)
-
-app.add_handler(
-    CallbackQueryHandler(
-        imdb_details_callback,
-        filters.regex("^imdbdetails")
-    )
-)
-
-
-app.add_handler(
-    CallbackQueryHandler(
-        imdb_pagination_callback,
-        filters.regex("^imdb:")
-    )
-)
-
-
-# -------------------------------------------------------------------
-# Handler: url
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        handle_drama_url,
-        filters.command("mdlurl", prefixes="/")
-    )
-)
-
-app.add_handler(
-    MessageHandler(
-        handle_imdb_url,
-        filters.command("imdburl", prefixes="/")
-    )
-)
-
-
-# -------------------------------------------------------------------
-# Handler: Close Search Results (Callback)
-# -------------------------------------------------------------------
-app.add_handler(
-    CallbackQueryHandler(
-        close_search_results,
-        filters.regex("^close_search")
-    )
-)
-
-
-# -------------------------------------------------------------------
-# Handler: set template (User-specific template)
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        set_template_command,
-        filters.command("setmdltemplate", prefixes="/")
-    )
-)
-
-app.add_handler(
-    MessageHandler(
-        set_imdb_template_command,
-        filters.command("setimdbtemplate", prefixes="/")
-    )
-)
-
-# -------------------------------------------------------------------
-# Handler: get template (User-specific template)
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        get_template_command,
-        filters.command("getmdltemplate", prefixes="/")
-    )
-)
-app.add_handler(
-    MessageHandler(
-        get_imdb_template_command,
-        filters.command("getimdbtemplate", prefixes="/")
-    )
-)
-
-# -------------------------------------------------------------------
-# Handler: remove template (User-specific template)
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        remove_template_command,
-        filters.command("removemdltemplate", prefixes="/")
-    )
-)
-
-app.add_handler(
-    MessageHandler(
-        remove_imdb_template_command,
-        filters.command("removeimdbtemplate", prefixes="/")
-    )
-)
-
-# -------------------------------------------------------------------
-
-# -------------------------------------------------------------------
-# Handler: preview template (User-specific template)
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        preview_template_command,
-        filters.command("previewmdltemplate", prefixes="/")
-    )
-)
-
-app.add_handler(
-    MessageHandler(
-        preview_imdb_template_command,
-        filters.command("previewimdbtemplate", prefixes="/")
-    )
-)
-
-# -------------------------------------------------------------------
-# Handler: /log (Owner only)
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        send_log,
-        filters.command("log", prefixes="/") & filters.user(OWNER_ID)
-    )
-)
-
-# -------------------------------------------------------------------
-# Handler: /help    
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        help_command,
-        filters.command("help", prefixes="/")
-    )
-)
-
-# -------------------------------------------------------------------
-# Handler: /userstats (Owner only)
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        user_stats_command,
-        filters.command("userstats", prefixes="/") & filters.user(OWNER_ID)
-    )
-)
-
-# -------------------------------------------------------------------
-# Handler: /publicmode (Owner only)
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        set_public_mode_command,
-        filters.command("setpublicmode", prefixes="/") & filters.user(OWNER_ID)
-    )
-)
-
-# -------------------------------------------------------------------
-# Handler: /broadcast (Owner only)
-# -------------------------------------------------------------------
-app.add_handler(
-    MessageHandler(
-        manual_broadcast_command,
-        filters.command("broadcast", prefixes="/") & filters.user(OWNER_ID)
-    )
-)
+    def __init__(self) -> None:
+        self.app = Client(
+            "mydramalist_bot",
+            bot_token=settings.bot_token,
+            api_id=settings.api_id,
+            api_hash=settings.api_hash
+        )
+        self.is_running = False
+    
+    async def start_services(self) -> None:
+        """Start all services with proper initialization order."""
+        logger.info("Starting services...")
+        
+        try:
+            # Start HTTP client first
+            await http_client.start()
+            
+            # Start cache client
+            await cache_client.start()
+            
+            # Start database
+            await mongo_client.start()
+            
+            logger.info("All services started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start services: {e}")
+            await self.stop_services()  # Cleanup on failure
+            raise
+    
+    async def stop_services(self) -> None:
+        """Gracefully stop all services."""
+        logger.info("Stopping services...")
+        
+        # Stop in reverse order with error handling
+        errors = []
+        
+        try:
+            await mongo_client.close()
+        except Exception as e:
+            errors.append(f"MongoDB: {e}")
+        
+        try:
+            await cache_client.close()
+        except Exception as e:
+            errors.append(f"Redis: {e}")
+        
+        try:
+            await http_client.close()
+        except Exception as e:
+            errors.append(f"HTTP: {e}")
+        
+        if errors:
+            logger.warning(f"Service shutdown errors: {'; '.join(errors)}")
+        
+        logger.info("All services stopped")
+    
+    def setup_handlers(self) -> None:
+        """Register all handlers with performance monitoring."""
+        
+        # Apply performance monitoring to key handlers
+        monitored_start = monitor_performance("start_command")(start_command)
+        monitored_search_dramas = monitor_performance("search_dramas")(search_dramas_command)
+        monitored_search_imdb = monitor_performance("search_imdb")(search_imdb)
+        monitored_drama_details = monitor_performance("drama_details")(drama_details_callback)
+        monitored_imdb_details = monitor_performance("imdb_details")(imdb_details_callback)
+        
+        # Authorization handlers (Owner only)
+        self.app.add_handler(MessageHandler(authorize_cmd, filters.command("authorize") & filters.user(settings.owner_id)))
+        self.app.add_handler(MessageHandler(unauthorize_cmd, filters.command("unauthorize") & filters.user(settings.owner_id)))
+        self.app.add_handler(MessageHandler(list_users_cmd, filters.command("users") & filters.user(settings.owner_id)))
+        
+        # Core handlers
+        self.app.add_handler(MessageHandler(monitored_start, filters.command("start")))
+        self.app.add_handler(MessageHandler(help_command, filters.command("help")))
+        
+        # Search handlers  
+        self.app.add_handler(MessageHandler(monitored_search_dramas, filters.command("mdl")))
+        self.app.add_handler(MessageHandler(monitored_search_imdb, filters.command("imdb")))
+        
+        # URL handlers
+        self.app.add_handler(MessageHandler(handle_drama_url, filters.command("mdlurl")))
+        self.app.add_handler(MessageHandler(handle_imdb_url, filters.command("imdburl")))
+        
+        # Callback handlers
+        self.app.add_handler(CallbackQueryHandler(monitored_drama_details, filters.regex("^details")))
+        self.app.add_handler(CallbackQueryHandler(monitored_imdb_details, filters.regex("^imdbdetails")))
+        self.app.add_handler(CallbackQueryHandler(imdb_pagination_callback, filters.regex("^imdb:")))
+        self.app.add_handler(CallbackQueryHandler(close_search_results, filters.regex("^close_search")))
+        
+        # Template handlers
+        self.app.add_handler(MessageHandler(set_template_command, filters.command("setmdltemplate")))
+        self.app.add_handler(MessageHandler(get_template_command, filters.command("getmdltemplate")))
+        self.app.add_handler(MessageHandler(remove_template_command, filters.command("removemdltemplate")))
+        self.app.add_handler(MessageHandler(preview_template_command, filters.command("previewmdltemplate")))
+        
+        self.app.add_handler(MessageHandler(set_imdb_template_command, filters.command("setimdbtemplate")))
+        self.app.add_handler(MessageHandler(get_imdb_template_command, filters.command("getimdbtemplate")))
+        self.app.add_handler(MessageHandler(remove_imdb_template_command, filters.command("removeimdbtemplate")))
+        self.app.add_handler(MessageHandler(preview_imdb_template_command, filters.command("previewimdbtemplate")))
+        
+        # Admin handlers (Owner only)
+        self.app.add_handler(MessageHandler(send_log, filters.command("log") & filters.user(settings.owner_id)))
+        self.app.add_handler(MessageHandler(user_stats_command, filters.command("userstats") & filters.user(settings.owner_id)))
+        self.app.add_handler(MessageHandler(set_public_mode_command, filters.command("setpublicmode") & filters.user(settings.owner_id)))
+        self.app.add_handler(MessageHandler(manual_broadcast_command, filters.command("broadcast") & filters.user(settings.owner_id)))
+        
+        # Inline handlers
+        self.app.add_handler(InlineQueryHandler(handle_inline_query))
+        self.app.add_handler(ChosenInlineResultHandler(handle_chosen_inline_result))
+        
+        # Health check handler
+        @self.app.on_message(filters.command("health") & filters.user(settings.owner_id))
+        async def health_check(client, message):
+            """Health check endpoint for monitoring."""
+            health_status = await HealthChecker.check_services()
+            status_text = "🏥 **Service Health Status**\\n\\n"
+            
+            for service, status in health_status.items():
+                emoji = "✅" if status == "healthy" else "❌"
+                status_text += f"{emoji} **{service.title()}**: {status}\\n"
+            
+            await message.reply_text(status_text)
+        
+        logger.info("All handlers registered with performance monitoring")
+    
+    def setup_signal_handlers(self) -> None:
+        """Setup graceful shutdown handlers."""
+        def signal_handler(sig: int, frame) -> None:
+            logger.info(f"Received signal {sig}, initiating graceful shutdown...")
+            self.is_running = False
+        
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+    
+    async def run(self) -> None:
+        """Run the bot with proper lifecycle management."""
+        try:
+            self.setup_signal_handlers()
+            await self.start_services()
+            self.setup_handlers()
+            
+            logger.info("Starting Telegram bot...")
+            await self.app.start()
+            self.is_running = True
+            
+            logger.info("🚀 High-performance bot is running with:")
+            logger.info(f"  - uvloop: {'enabled' if 'uvloop' in sys.modules else 'disabled'}")
+            logger.info(f"  - Async HTTP client with {settings.max_connections} max connections")
+            logger.info(f"  - Redis caching with {settings.cache_ttl}s TTL")
+            logger.info(f"  - MongoDB connection pooling")
+            logger.info(f"  - Performance monitoring enabled")
+            
+            # Keep running until shutdown signal
+            while self.is_running:
+                await asyncio.sleep(1)
+                
+        except Exception as e:
+            logger.error(f"Bot startup failed: {e}")
+            raise
+        finally:
+            logger.info("Initiating graceful shutdown...")
+            try:
+                await self.app.stop()
+            except Exception as e:
+                logger.error(f"Error stopping Telegram client: {e}")
+            await self.stop_services()
+            logger.info("Bot shutdown complete")
 
 
+async def main() -> None:
+    """Main entry point."""
+    bot = HighPerformanceBot()
+    await bot.run()
 
-# -------------------------------------------------------------------
-# Main
-# -------------------------------------------------------------------
+
 if __name__ == "__main__":
     try:
-        # Pass the function itself (no parentheses):
-        app.run()
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
     except Exception as e:
-        logger.error(f"Bot failed to start: {e}")
+        logger.error(f"Bot crashed: {e}")
+        sys.exit(1)

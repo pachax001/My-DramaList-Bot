@@ -3,7 +3,10 @@ pyrofork
 tgcrypto
 pymongo
 python-dotenv
-requests
-urllib3
+aiohttp
+aioredis
+pydantic
+imdbinfo
+motor
 certifi
-git+https://github.com/cinemagoer/cinemagoer
+uvloop; sys_platform != "win32"
