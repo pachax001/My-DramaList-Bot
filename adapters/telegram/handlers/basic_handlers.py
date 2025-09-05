@@ -691,7 +691,7 @@ async def restart_bot_command(client: Client, message: Message):
     
     try:
         # Send initial restart message
-        restart_msg = await message.reply_text("🔄 **Restarting Bot...**\n\n⏳ Starting restart process...")
+        restart_msg = await message.reply_text("🔄 <b>Restarting Bot...</b>\n\n⏳ Starting restart process...", parse_mode=ParseMode.HTML)
         
         # Save restart status to file for tracking
         restart_data = {
@@ -708,7 +708,7 @@ async def restart_bot_command(client: Client, message: Message):
             json.dump(restart_data, f, indent=2)
         
         # Update message with pull status
-        await restart_msg.edit_text("🔄 **Restarting Bot...**\n\n📡 Pulling latest code from GitHub...")
+        await restart_msg.edit_text("🔄 <b>Restarting Bot...</b>\n\n📡 Pulling latest code from GitHub...", parse_mode=ParseMode.HTML)
         
         # Get current commit info before update
         try:
@@ -764,7 +764,7 @@ async def restart_bot_command(client: Client, message: Message):
             ).strip()
             
         except subprocess.CalledProcessError as e:
-            await restart_msg.edit_text(f"❌ **Restart Failed**\n\n🚫 Git pull failed: {e}")
+            await restart_msg.edit_text(f"❌ <b>Restart Failed</b>\n\n🚫 Git pull failed: {e}", parse_mode=ParseMode.HTML)
             logger.error(f"Git pull failed during restart: {e}")
             return
         
@@ -785,19 +785,19 @@ async def restart_bot_command(client: Client, message: Message):
         
         # Check if there were any changes
         if current_commit == new_commit:
-            update_status = "📋 **No new updates** (already on latest)"
+            update_status = "📋 <b>No new updates</b> (already on latest)"
         else:
-            update_status = f"✅ **Code updated successfully**\n📝 **New commit:** `{new_commit[:8]}`\n💬 **Message:** {new_commit_msg}\n👤 **Author:** {new_commit_author}\n⏰ **Date:** {new_commit_date}"
+            update_status = f"✅ <b>Code updated successfully</b>\n📝 <b>New commit:</b> <code>{new_commit[:8]}</code>\n💬 <b>Message:</b> {new_commit_msg}\n👤 <b>Author:</b> {new_commit_author}\n⏰ <b>Date:</b> {new_commit_date}"
         
         # Final message before restart
-        final_message = f"""🔄 **Restarting Bot...**
+        final_message = f"""🔄 <b>Restarting Bot...</b>
 
 {update_status}
 
-🔄 **Restarting Python process...**
+🔄 <b>Restarting Python process...</b>
 ⏳ Bot will be back online shortly!
 
-*This message will be updated with restart status...*"""
+<i>This message will be updated with restart status...</i>"""
         
         await restart_msg.edit_text(final_message, parse_mode=ParseMode.HTML)
         
@@ -821,9 +821,9 @@ async def restart_bot_command(client: Client, message: Message):
     except Exception as e:
         logger.error(f"Error in restart command: {e}")
         try:
-            await restart_msg.edit_text(f"❌ **Restart Failed**\n\n🚫 Error: {str(e)}")
+            await restart_msg.edit_text(f"❌ <b>Restart Failed</b>\n\n🚫 Error: {str(e)}", parse_mode=ParseMode.HTML)
         except:
-            await message.reply_text(f"❌ **Restart Failed**\n\n🚫 Error: {str(e)}")
+            await message.reply_text(f"❌ <b>Restart Failed</b>\n\n🚫 Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 
 async def check_restart_status():
@@ -883,21 +883,21 @@ async def check_restart_status():
                 new_commit = restart_data.get('new_commit', current_commit)
                 
                 if old_commit == new_commit:
-                    update_info = "📋 **No new updates** (already on latest version)"
+                    update_info = "📋 <b>No new updates</b> (already on latest version)"
                 else:
-                    update_info = f"""✅ **Code updated successfully**
-📝 **New commit:** `{current_commit[:8]}`
-💬 **Message:** {current_commit_msg}  
-👤 **Author:** {current_commit_author}"""
+                    update_info = f"""✅ <b>Code updated successfully</b>
+📝 <b>New commit:</b> <code>{current_commit[:8]}</code>
+💬 <b>Message:</b> {current_commit_msg}  
+👤 <b>Author:</b> {current_commit_author}"""
                 
-                success_message = f"""✅ **Bot Restarted Successfully!**
+                success_message = f"""✅ <b>Bot Restarted Successfully!</b>
 
 {update_info}
 
-🔄 **Restart completed:** {restart_time}
-⚡ **Status:** Bot is now online and ready!
+🔄 <b>Restart completed:</b> {restart_time}
+⚡ <b>Status:</b> Bot is now online and ready!
 
-*Restart initiated by @{restart_data.get('username', 'Unknown')}*"""
+<i>Restart initiated by @{restart_data.get('username', 'Unknown')}</i>"""
                 
                 # Update the original message
                 await temp_client.edit_message_text(
