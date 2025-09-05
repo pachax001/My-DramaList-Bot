@@ -151,29 +151,58 @@ class TemplateService:
             genres_with_emoji = "N/A"
         
         placeholders = {
+            # Basic Information
             "title": get("title"),
-            "localized_title": get("localized_title"),
             "kind": get("kind"),
             "year": get("year"),
             "rating": get("rating"),
             "votes": get("votes"),
             "runtime": get("runtime"),
-            "cast": get("cast"),
-            "director": get("director"),
-            "writer": get("writer"),
-            "producer": get("producer"),
-            "composer": get("composer"),
-            "cinematographer": get("cinematographer"),
-            "music_team": get("music_team"),
-            "distributors": get("distributors"),
             "countries": get("countries"),
-            "certificates": get("certificates"),
             "languages": get("languages"),
-            "box_office": get("box_office"),
-            "seasons": get("seasons"),
+            "mpaa": get("mpaa"),
             "plot": get("plot"),
             "imdb_url": get("imdb_url"),
+            "imdb_id": get("imdb_id"),
+            "poster": get("poster"),
             "genres": genres_with_emoji,
+            
+            # People (detailed with characters for cast)
+            "cast": get("cast"),
+            "cast_simple": get("cast_simple"),
+            "directors": get("directors"),
+            "writers": get("writers"),
+            "producers": get("producers"),
+            "composers": get("composers"),
+            "cinematographers": get("cinematographers"),
+            "editors": get("editors"),
+            "production_designers": get("production_designers"),
+            "costume_designers": get("costume_designers"),
+            
+            # Series/Episode Information
+            "is_series": get("is_series"),
+            "is_episode": get("is_episode"),
+            "series_info": get("series_info"),
+            "episode_info": get("episode_info"),
+            
+            # Release Information
+            "release_dates": get("release_dates"),
+            "premiere_date": get("premiere_date"),
+            "original_air_date": get("original_air_date"),
+            
+            # Technical Details
+            "aspect_ratios": get("aspect_ratios"),
+            "sound_mix": get("sound_mix"),
+            "color_info": get("color_info"),
+            
+            # Box Office Information
+            "budget": get("budget"),
+            "gross": get("gross"),
+            "box_office": get("box_office"),
+            "opening_weekend_usa": get("opening_weekend_usa"),
+            
+            # Content Ratings
+            "certificates": get("certificates"),
         }
         
         # Apply user template or default
@@ -276,22 +305,101 @@ class TemplateService:
         return "\n".join(caption_parts)
     
     def _build_default_imdb_caption(self, p: Dict[str, str]) -> str:
-        """Build default IMDB caption."""
-        return (
-            f"<b>{p['title']}</b>\n"
-            f"<i>{p['localized_title']}</i>\n"
-            f"<b>Year:</b> {p['year']}\n"
-            f"<b>Type:</b> {p['kind']}\n"
-            f"<b>Rating:</b> {p['rating']} ⭐️ ({p['votes']} votes)\n"
-            f"<b>Genres:</b> {p['genres']}\n"
-            f"<b>Runtime:</b> {p['runtime']}\n"
-            f"<b>Country:</b> {p['countries']}\n"
-            f"<b>Languages:</b> {p['languages']}\n"
-            f"<b>Box Office:</b> {p['box_office']}\n"
-            f"<b>Seasons:</b> {p['seasons']}\n\n"
-            f"<b>Plot:</b> {p['plot']}\n\n"
-            f"<a href='{p['imdb_url']}'>More on IMDb</a>"
-        )
+        """Build default IMDB caption similar to MyDramaList format."""
+        content_type = p.get('kind', 'movie').lower()
+        
+        # Start with title
+        caption_parts = [f"<b>{p['title']}</b>"]
+        
+        # Year, Type, and Episode info
+        info_parts = []
+        if p['year'] != "N/A":
+            info_parts.append(f"<b>Year:</b> {p['year']}")
+        if p['kind'] != "N/A":
+            info_parts.append(f"<b>Type:</b> {p['kind']}")
+        if p['episode_info'] != "N/A" and p['episode_info'].strip():
+            info_parts.append(f"<b>Episode:</b> {p['episode_info']}")
+        
+        if info_parts:
+            caption_parts.append(" | ".join(info_parts))
+        
+        # Rating with votes and star emoji
+        if p['rating'] != "N/A":
+            rating_text = f"<b>Rating ⭐️:</b> {p['rating']}"
+            if p['votes'] != "N/A":
+                rating_text += f" ({p['votes']} votes)"
+            caption_parts.append(rating_text)
+        
+        # Countries
+        if p['countries'] != "N/A":
+            caption_parts.append(f"<b>Countries:</b> {p['countries']}")
+        
+        # Runtime and Series info
+        runtime_parts = []
+        if p['runtime'] != "N/A":
+            runtime_parts.append(f"<b>Runtime:</b> {p['runtime']}")
+        if p['series_info'] != "N/A" and p['series_info'].strip():
+            runtime_parts.append(f"<b>Series:</b> {p['series_info']}")
+        
+        if runtime_parts:
+            caption_parts.append(" | ".join(runtime_parts))
+        
+        # Release information
+        if content_type in ['tvseries', 'tvminiseries']:
+            # For TV series, show original air date
+            if p['original_air_date'] != "N/A":
+                caption_parts.append(f"<b>Aired:</b> {p['original_air_date']}")
+        else:
+            # For movies, show premiere or release date
+            if p['premiere_date'] != "N/A":
+                caption_parts.append(f"<b>Premiere:</b> {p['premiere_date']}")
+            elif p['release_dates'] != "N/A":
+                caption_parts.append(f"<b>Released:</b> {p['release_dates']}")
+        
+        # Languages
+        if p['languages'] != "N/A":
+            caption_parts.append(f"<b>Languages:</b> {p['languages']}")
+        
+        # MPAA Rating
+        if p['mpaa'] != "N/A":
+            caption_parts.append(f"<b>Rated:</b> {p['mpaa']}")
+        
+        # Genres with emojis
+        if p['genres'] != "N/A":
+            caption_parts.append(f"<b>Genres:</b> {p['genres']}")
+        
+        # Directors
+        if p['directors'] != "N/A":
+            caption_parts.append(f"<b>Directors:</b> {p['directors']}")
+        
+        # Writers (if different from directors)
+        if p['writers'] != "N/A" and p['writers'] != p['directors']:
+            caption_parts.append(f"<b>Writers:</b> {p['writers']}")
+        
+        # Cast with character names (truncate if too long)
+        if p['cast'] != "N/A":
+            cast_text = p['cast']
+            if len(cast_text) > 200:  # Truncate if too long
+                cast_text = cast_text[:200] + "..."
+            caption_parts.append(f"<b>Cast:</b> {cast_text}")
+        
+        # Box office (for movies)
+        if content_type == 'movie' and p['box_office'] != "N/A":
+            caption_parts.append(f"<b>Box Office:</b> {p['box_office']}")
+        
+        # Plot/Synopsis
+        if p['plot'] != "N/A":
+            plot = p['plot'].strip()
+            # Dynamic truncation based on content type
+            max_length = 300 if content_type in ['tvseries', 'tvminiseries'] else 250
+            if len(plot) > max_length:
+                plot = plot[:max_length] + "..."
+            caption_parts.append(f"<b>Plot:</b> {plot}")
+        
+        # IMDb link
+        caption_parts.append(f"\n<a href='{p['imdb_url']}'>More on IMDb</a>")
+        
+        return "\n".join(caption_parts)
 
 
 # Global template service instance

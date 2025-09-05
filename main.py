@@ -7,6 +7,7 @@ import sys
 from typing import NoReturn
 from contextlib import asynccontextmanager
 from pyrogram import Client
+from pyrogram.types import BotCommand, BotCommandScopeChat
 
 # Enable uvloop on POSIX systems for better performance
 if os.name == "posix":
@@ -25,8 +26,9 @@ from infra.http import http_client
 from infra.cache import cache_client
 from infra.db import mongo_client
 
-# Middleware
+# Middleware  
 from app.middleware import monitor_performance, HealthChecker
+from app.commands import BotCommandManager
 
 # Handlers (new architecture)
 from adapters.telegram.handlers.auth_handlers import authorize_cmd, unauthorize_cmd, list_users_cmd
@@ -35,7 +37,8 @@ from adapters.telegram.handlers.search_handlers import (search_dramas_command, d
     search_imdb, imdb_pagination_callback, imdb_details_callback, handle_drama_url, handle_imdb_url,
     handle_inline_query, handle_chosen_inline_result)
 from adapters.telegram.handlers.template_handlers import (set_template_command, get_template_command, remove_template_command, preview_template_command,
-    set_imdb_template_command, get_imdb_template_command, remove_imdb_template_command, preview_imdb_template_command)
+    set_imdb_template_command, get_imdb_template_command, remove_imdb_template_command, preview_imdb_template_command,
+    mdl_placeholders_command, imdb_placeholders_command)
 from pyrogram import filters
 
 logger = get_logger(__name__)
@@ -144,6 +147,10 @@ class HighPerformanceBot:
         self.app.add_handler(MessageHandler(remove_imdb_template_command, filters.command("removeimdbtemplate")))
         self.app.add_handler(MessageHandler(preview_imdb_template_command, filters.command("previewimdbtemplate")))
         
+        # Placeholder listing handlers
+        self.app.add_handler(MessageHandler(mdl_placeholders_command, filters.command("mdlplaceholders")))
+        self.app.add_handler(MessageHandler(imdb_placeholders_command, filters.command("imdbplaceholders")))
+        
         # Admin handlers (Owner only)
         self.app.add_handler(MessageHandler(send_log, filters.command("log") & filters.user(settings.owner_id)))
         self.app.add_handler(MessageHandler(user_stats_command, filters.command("userstats") & filters.user(settings.owner_id)))
@@ -169,6 +176,25 @@ class HighPerformanceBot:
         
         logger.info("All handlers registered with performance monitoring")
     
+    async def setup_bot_commands(self) -> None:
+        """Set up bot commands in Telegram's command menu."""
+        try:
+            # Get current public mode status from database
+            public_setting = await mongo_client.db.settings.find_one({"key": "public_mode"})
+            is_public = public_setting.get("value", True) if public_setting else settings.is_public
+            
+            # Setup commands using the command manager
+            success = await BotCommandManager.setup_commands(self.app, settings.owner_id, is_public)
+            
+            if success:
+                logger.info("✅ Bot commands registered successfully")
+            else:
+                logger.warning("⚠️ Bot command registration had issues")
+                
+        except Exception as e:
+            logger.error(f"Failed to set bot commands: {e}")
+            # Don't fail startup if command registration fails
+    
     def setup_signal_handlers(self) -> None:
         """Setup graceful shutdown handlers."""
         def signal_handler(sig: int, frame) -> None:
@@ -187,6 +213,10 @@ class HighPerformanceBot:
             
             logger.info("Starting Telegram bot...")
             await self.app.start()
+            
+            # Setup bot commands in Telegram menu
+            await self.setup_bot_commands()
+            
             self.is_running = True
             
             logger.info("🚀 High-performance bot is running with:")

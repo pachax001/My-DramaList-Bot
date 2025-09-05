@@ -85,20 +85,26 @@ async def help_command(client: Client, message: Message):
 
 **🔍 Search Commands:**
 /mdl <query> - Search dramas on MyDramaList
+/mdl <url> - Process MyDramaList URL directly
 /imdb <query> - Search movies/shows on IMDB
-/mdlurl <url> - Get drama details by MyDramaList URL
-/imdburl <url> - Get movie details by IMDB URL
+/imdb <url> - Process IMDB URL directly
+/mdlurl <url> - Get drama details by URL
+/imdburl <url> - Get movie/show details by URL
+
+*You can also reply to messages containing URLs with these commands!*
 
 **🎨 Template Commands:**
 /setmdltemplate <template> - Set custom MyDramaList template
 /getmdltemplate - View your current MDL template
 /removemdltemplate - Remove your MDL template
 /previewmdltemplate - Preview your MDL template
+/mdlplaceholders - Show all MyDramaList placeholders
 
 /setimdbtemplate <template> - Set custom IMDB template
 /getimdbtemplate - View your current IMDB template
 /removeimdbtemplate - Remove your IMDB template
 /previewimdbtemplate - Preview your IMDB template
+/imdbplaceholders - Show all IMDB placeholders
 
 **📱 Inline Search:**
 Type `@botusername <query>` in any chat to search MyDramaList inline
@@ -113,16 +119,34 @@ Type `@botusername <query>` in any chat to search MyDramaList inline
 /log - Get bot logs
 /health - Check service health
 
-**💡 Template Variables:**
+**💡 Template Guide:**
 
-**MyDramaList:** {title}, {rating}, {synopsis}, {country}, {episodes}, {genres}, etc.
-
-**IMDB:** {title}, {year}, {rating}, {plot}, {cast}, {director}, {genres}, etc.
-
-Example template:
-`<b>{title}</b> ({year})
+**Basic Example:**
+```
+<b>{title}</b> ({year})
 Rating: {rating} ⭐️
-{plot}`
+{plot}
+```
+
+**MyDramaList Sample:**
+```
+🎭 <b>{title}</b>
+📍 Country: {country} | Episodes: {episodes}
+⭐ Rating: {rating}
+🎬 Genres: {genres}
+📖 {synopsis}
+```
+
+**IMDB Sample:**
+```
+🎬 <b>{title}</b> ({year})
+⭐ {rating}/10 ({votes} votes)
+🎭 Cast: {cast}
+🎬 Directors: {directors}
+📝 {plot}
+```
+
+Use /mdlplaceholders or /imdbplaceholders to see all available fields!
 
 Need help? Contact: @matthewmurdockbot
 """
@@ -226,7 +250,16 @@ async def set_public_mode_command(client: Client, message: Message):
         mode_text = "enabled" if new_mode else "disabled"
         logger.info(f"Public mode {mode_text} by owner {settings.owner_id}")
         
-        await message.reply_text(f"✅ Public mode has been **{mode_text}**.")
+        # Update bot commands to reflect new mode
+        try:
+            from app.commands import BotCommandManager
+            await BotCommandManager.update_commands_for_mode_change(client, settings.owner_id, new_mode)
+            command_status = "Bot commands updated automatically."
+        except Exception as cmd_error:
+            logger.error(f"Failed to update bot commands: {cmd_error}")
+            command_status = "⚠️ Bot commands may need manual restart to update."
+        
+        await message.reply_text(f"✅ Public mode has been **{mode_text}**.\n{command_status}")
         
     except Exception as e:
         logger.error(f"Error setting public mode: {e}")

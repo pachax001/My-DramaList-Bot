@@ -9,6 +9,17 @@ from infra.logging import get_logger, log_performance
 from infra.cache import cache_client
 import time
 
+try:
+    from imdbinfo import search_title, get_movie
+    from imdbinfo.locale import set_locale
+    # Set default locale to English
+    set_locale("en")
+except ImportError as e:
+    logger = get_logger(__name__)
+    logger.error(f"imdbinfo library not available: {e}")
+    search_title = None
+    get_movie = None
+
 logger = get_logger(__name__)
 
 
@@ -101,33 +112,153 @@ class IMDBAdapter:
     def _sync_search_movies(self, query: str) -> List[Dict[str, Any]]:
         """Synchronous IMDB search (runs in thread pool)."""
         try:
-            # For now, return mock data since imdbinfo setup is complex
-            # In production, replace with actual imdbinfo calls
-            return [
-                {'id': '1234567', 'title': f'Mock Result for {query}', 'year': '2023', 'kind': 'movie'}
-            ]
+            if not search_title:
+                logger.error("imdbinfo library not available")
+                return []
+            
+            # Search for titles using imdbinfo
+            results = search_title(query)
+            
+            if not results or not hasattr(results, 'titles'):
+                logger.info(f"No IMDB results found for query: {query}")
+                return []
+            
+            # Transform results to our format
+            movies = []
+            for movie in results.titles[:20]:  # Limit to first 20 results
+                try:
+                    # Clean IMDB ID (remove 'tt' prefix if present)
+                    imdb_id = movie.imdb_id
+                    if imdb_id.startswith('tt'):
+                        imdb_id = imdb_id[2:]
+                    
+                    movies.append({
+                        'id': imdb_id,
+                        'title': movie.title or 'Unknown Title',
+                        'year': str(movie.year) if movie.year else None,
+                        'kind': movie.kind or 'movie'
+                    })
+                except AttributeError as e:
+                    logger.warning(f"Error processing movie result: {e}")
+                    continue
+            
+            logger.info(f"Found {len(movies)} IMDB results for query: {query}")
+            return movies
+            
         except Exception as e:
-            logger.error(f"IMDB search error: {e}")
+            logger.error(f"IMDB search error for '{query}': {e}")
             return []
     
     def _sync_get_movie(self, imdb_id: str) -> Optional[Dict[str, Any]]:
         """Synchronous IMDB movie details (runs in thread pool)."""
         try:
-            # Mock data for now - replace with actual imdbinfo in production
-            return {
-                'title': f'Mock Movie {imdb_id}',
-                'year': '2023',
-                'rating': '8.5',
-                'plot': 'A mock plot description for testing performance.',
-                'genres': ['Drama', 'Action'],
-                'cast': ['Actor 1', 'Actor 2'],
-                'director': ['Director Name'],
-                'runtime': ['120 min'],
-                'countries': ['USA'],
-                'languages': ['English']
+            if not get_movie:
+                logger.error("imdbinfo library not available")
+                return None
+            
+            # Ensure IMDB ID doesn't have 'tt' prefix for imdbinfo
+            clean_id = imdb_id
+            if clean_id.startswith('tt'):
+                clean_id = clean_id[2:]
+            
+            # Get movie details using imdbinfo
+            movie = get_movie(clean_id)
+            
+            if not movie:
+                logger.warning(f"No IMDB movie found for ID: {imdb_id}")
+                return None
+            
+            # Helper function to safely extract list data
+            def extract_names(category_list, limit=10):
+                """Extract names from category list with limit."""
+                if not category_list:
+                    return []
+                return [person.name for person in category_list[:limit] if hasattr(person, 'name')]
+            
+            def extract_cast_with_characters(cast_list, limit=15):
+                """Extract cast with character names."""
+                if not cast_list:
+                    return []
+                cast_info = []
+                for cast_member in cast_list[:limit]:
+                    if hasattr(cast_member, 'name'):
+                        name = cast_member.name
+                        if hasattr(cast_member, 'characters') and cast_member.characters:
+                            characters = ', '.join(cast_member.characters[:2])  # Limit to 2 characters
+                            cast_info.append(f"{name} ({characters})")
+                        else:
+                            cast_info.append(name)
+                return cast_info
+            
+            # Extract comprehensive data from categories
+            categories = getattr(movie, 'categories', {})
+            
+            # Basic information
+            movie_data = {
+                'title': getattr(movie, 'title', 'Unknown Title'),
+                'year': str(getattr(movie, 'year', '')) if getattr(movie, 'year', None) else None,
+                'rating': str(getattr(movie, 'rating', '')) if getattr(movie, 'rating', None) else None,
+                'votes': str(getattr(movie, 'votes', '')) if getattr(movie, 'votes', None) else None,
+                'plot': getattr(movie, 'plot', None),
+                'genres': getattr(movie, 'genres', []),
+                'runtimes': getattr(movie, 'runtimes', []),
+                'countries': getattr(movie, 'countries', []),
+                'country_codes': getattr(movie, 'country_codes', []),
+                'languages': getattr(movie, 'languages', []),
+                'languages_text': getattr(movie, 'languages_text', []),
+                'mpaa': getattr(movie, 'mpaa', None),
+                'kind': getattr(movie, 'kind', 'movie'),
+                'url': getattr(movie, 'url', None),
+                'cover_url': getattr(movie, 'cover_url', None),
+                'imdb_id': f"tt{clean_id}",
+                
+                # Series/Episode specific
+                'is_series': movie.is_series() if hasattr(movie, 'is_series') else False,
+                'is_episode': movie.is_episode() if hasattr(movie, 'is_episode') else False,
+                'info_series': getattr(movie, 'info_series', None),
+                'info_episode': getattr(movie, 'info_episode', None),
+                
+                # Release information
+                'release_dates': getattr(movie, 'release_dates', []),
+                'premiere_date': getattr(movie, 'premiere_date', None),
+                'original_air_date': getattr(movie, 'original_air_date', None),
+                
+                # Technical details
+                'aspect_ratios': getattr(movie, 'aspect_ratios', []),
+                'sound_mix': getattr(movie, 'sound_mix', []),
+                'color_info': getattr(movie, 'color_info', []),
+                'cameras': getattr(movie, 'cameras', []),
+                
+                # Box office and awards
+                'budget': getattr(movie, 'budget', None),
+                'gross': getattr(movie, 'gross', None),
+                'weekend': getattr(movie, 'weekend', None),
+                'opening_weekend_usa': getattr(movie, 'opening_weekend_usa', None),
+                
+                # Content ratings
+                'certificates': getattr(movie, 'certificates', []),
+                'parents_guide': getattr(movie, 'parents_guide', {}),
+                
+                # People categories
+                'cast': extract_cast_with_characters(categories.get('cast', []), 15),
+                'cast_simple': extract_names(categories.get('cast', []), 10),
+                'writers': extract_names(categories.get('writer', []), 5),
+                'producers': extract_names(categories.get('producer', []), 5),
+                'composers': extract_names(categories.get('composer', []), 3),
+                'cinematographers': extract_names(categories.get('cinematographer', []), 3),
+                'editors': extract_names(categories.get('editor', []), 3),
+                'production_designers': extract_names(categories.get('production_designer', []), 2),
+                'costume_designers': extract_names(categories.get('costume_designer', []), 2),
             }
+            
+            # Add directors separately (keeping backward compatibility)
+            movie_data['directors'] = extract_names(categories.get('director', []), 5)
+            
+            logger.info(f"Successfully fetched IMDB details for: {movie_data['title']} ({movie_data['year']}) - {movie_data['kind']}")
+            return movie_data
+            
         except Exception as e:
-            logger.error(f"IMDB details error: {e}")
+            logger.error(f"IMDB details error for '{imdb_id}': {e}")
             return None
     
     def _transform_movie_data(self, movie: Dict[str, Any], imdb_id: str) -> Dict[str, Any]:
@@ -150,56 +281,117 @@ class IMDBAdapter:
                 return items
             return str(items)
         
-        # Plot handling with proper type checking
-        plot_raw = movie.get('plot_outline') or movie.get('plot')
+        # Plot handling - imdbinfo returns plot as a list or string
+        plot_raw = movie.get('plot')
         if isinstance(plot_raw, list) and plot_raw:
-            plot_raw = plot_raw[0]
+            plot_raw = plot_raw[0] if plot_raw[0] else ""
         
         # Ensure plot is a string before processing
         if plot_raw and isinstance(plot_raw, str):
-            if len(plot_raw) > 200:
-                plot_raw = plot_raw[:200] + "..."
-            plot = safe(html.escape(plot_raw), "No plot available")
+            # Clean up the plot - remove "See full summary »" and similar
+            plot_raw = re.sub(r'\s*See full .*?»\s*$', '', plot_raw, flags=re.IGNORECASE)
+            if len(plot_raw) > 300:
+                plot_raw = plot_raw[:300] + "..."
+            plot = html.escape(plot_raw) if plot_raw.strip() else "No plot available"
         else:
             plot = "No plot available"
         
-        # Release date fallback with type safety
-        release_date = (
-            movie.get("original_air_date") or 
-            movie.get("release_date") or
-            movie.get("year")
-        )
-        # Ensure release_date is properly handled
-        if release_date and not isinstance(release_date, str):
-            release_date = str(release_date)
+        # Ensure IMDB ID has 'tt' prefix
+        clean_imdb_id = imdb_id
+        if not clean_imdb_id.startswith('tt'):
+            clean_imdb_id = f"tt{clean_imdb_id}"
+        
+        # Runtime conversion - imdbinfo returns minutes as int/string
+        runtime_list = movie.get('runtimes', [])
+        if runtime_list:
+            if isinstance(runtime_list[0], (int, float)):
+                runtime = f"{runtime_list[0]} min"
+            else:
+                runtime = str(runtime_list[0])
+        else:
+            runtime = "N/A"
+        
+        # Series/Episode information processing
+        series_info = ""
+        episode_info = ""
+        
+        if movie.get('is_series'):
+            info = movie.get('info_series')
+            if info:
+                series_info = f"Seasons: {getattr(info, 'display_seasons', 'N/A')}"
+        
+        if movie.get('is_episode'):
+            info = movie.get('info_episode')
+            if info:
+                season = getattr(info, 'season', 'N/A')
+                episode = getattr(info, 'episode', 'N/A')
+                episode_info = f"S{season}E{episode}"
+        
+        # Box office processing
+        budget = safe(movie.get('budget'))
+        gross = safe(movie.get('gross'))
+        box_office = "N/A"
+        if budget != "N/A" or gross != "N/A":
+            parts = []
+            if budget != "N/A":
+                parts.append(f"Budget: {budget}")
+            if gross != "N/A":
+                parts.append(f"Gross: {gross}")
+            box_office = " | ".join(parts)
         
         return {
+            # Basic information
             'title': safe(movie.get('title')),
-            'localized_title': safe(movie.get('localized_title') or movie.get('title')),
             'kind': safe(movie.get('kind')),
             'year': safe(movie.get('year')),
-            'rating': safe(str(movie.get('rating', ''))) if movie.get('rating') else "N/A",
+            'rating': safe(movie.get('rating')),
             'votes': safe(movie.get('votes')),
-            'runtime': safe(list_to_str(movie.get('runtimes'))),
-            'genres': safe(list_to_str(movie.get('genres'))),
-            'cast': safe(list_to_str(movie.get('cast'))),
-            'director': safe(list_to_str(movie.get('director'))),
-            'writer': safe(list_to_str(movie.get('writer'))),
-            'producer': safe(list_to_str(movie.get('producer'))),
-            'composer': safe(list_to_str(movie.get('composer'))),
-            'cinematographer': safe(list_to_str(movie.get('cinematographer'))),
-            'music_team': safe(list_to_str(movie.get('music_department'))),
-            'distributors': safe(list_to_str(movie.get('distributors'))),
-            'countries': safe(list_to_str(movie.get('countries'))),
-            'certificates': safe(list_to_str(movie.get('certificates'))),
-            'languages': safe(list_to_str(movie.get('languages'))),
-            'box_office': safe(movie.get('box_office')),
-            'seasons': safe(movie.get('number_of_seasons')),
+            'runtime': runtime,
+            'genres': list_to_str(movie.get('genres')),
+            'countries': list_to_str(movie.get('countries')),
+            'languages': list_to_str(movie.get('languages_text') or movie.get('languages')),
+            'mpaa': safe(movie.get('mpaa')),
             'plot': plot,
-            'poster': safe(movie.get('full_size_cover_url') or movie.get('cover_url')),
-            'imdb_url': safe(f'https://www.imdb.com/title/tt{imdb_id}'),
-            'imdb_id': safe(f"tt{imdb_id}"),
-            'release_date': safe(release_date),
+            'poster': safe(movie.get('cover_url')),
+            'imdb_url': movie.get('url') or f'https://www.imdb.com/title/{clean_imdb_id}/',
+            'imdb_id': clean_imdb_id,
+            
+            # People
+            'cast': list_to_str(movie.get('cast')),
+            'cast_simple': list_to_str(movie.get('cast_simple')),
+            'directors': list_to_str(movie.get('directors')),
+            'writers': list_to_str(movie.get('writers')),
+            'producers': list_to_str(movie.get('producers')),
+            'composers': list_to_str(movie.get('composers')),
+            'cinematographers': list_to_str(movie.get('cinematographers')),
+            'editors': list_to_str(movie.get('editors')),
+            'production_designers': list_to_str(movie.get('production_designers')),
+            'costume_designers': list_to_str(movie.get('costume_designers')),
+            
+            # Series/Episode specific
+            'is_series': safe(str(movie.get('is_series', False))),
+            'is_episode': safe(str(movie.get('is_episode', False))),
+            'series_info': series_info,
+            'episode_info': episode_info,
+            
+            # Release information
+            'release_dates': list_to_str(movie.get('release_dates')),
+            'premiere_date': safe(movie.get('premiere_date')),
+            'original_air_date': safe(movie.get('original_air_date')),
+            
+            # Technical details
+            'aspect_ratios': list_to_str(movie.get('aspect_ratios')),
+            'sound_mix': list_to_str(movie.get('sound_mix')),
+            'color_info': list_to_str(movie.get('color_info')),
+            
+            # Box office
+            'budget': safe(movie.get('budget')),
+            'gross': safe(movie.get('gross')),
+            'box_office': box_office,
+            'opening_weekend_usa': safe(movie.get('opening_weekend_usa')),
+            
+            # Content ratings
+            'certificates': list_to_str(movie.get('certificates')),
         }
     
     def extract_imdb_id_from_url(self, url: str) -> Optional[str]:
