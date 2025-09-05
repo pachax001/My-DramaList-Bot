@@ -1,6 +1,11 @@
 """Basic bot command handlers."""
 
 import os
+import sys
+import asyncio
+import subprocess
+import json
+from datetime import datetime
 from pyrogram import Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ParseMode
@@ -675,3 +680,241 @@ async def manual_broadcast_command(client: Client, message: Message):
     except Exception as e:
         logger.error(f"Error in broadcast: {e}")
         await message.reply_text("❌ Broadcast failed due to an error.")
+
+
+async def restart_bot_command(client: Client, message: Message):
+    """Restart bot with force pull from GitHub (Owner only)."""
+    if message.from_user.id != settings.owner_id:
+        await message.reply_text("❌ Only bot owner can restart the bot.")
+        return
+    
+    try:
+        # Send initial restart message
+        restart_msg = await message.reply_text("🔄 **Restarting Bot...**\n\n⏳ Starting restart process...")
+        
+        # Save restart status to file for tracking
+        restart_data = {
+            'message_id': restart_msg.id,
+            'chat_id': message.chat.id,
+            'start_time': datetime.now().isoformat(),
+            'status': 'starting',
+            'user_id': message.from_user.id,
+            'username': message.from_user.username or 'Unknown'
+        }
+        
+        restart_file = 'restart_status.json'
+        with open(restart_file, 'w', encoding='utf-8') as f:
+            json.dump(restart_data, f, indent=2)
+        
+        # Update message with pull status
+        await restart_msg.edit_text("🔄 **Restarting Bot...**\n\n📡 Pulling latest code from GitHub...")
+        
+        # Get current commit info before update
+        try:
+            current_commit = subprocess.check_output(
+                ['git', 'rev-parse', 'HEAD'], 
+                cwd=os.getcwd(),
+                text=True
+            ).strip()
+            
+            current_commit_msg = subprocess.check_output(
+                ['git', 'log', '-1', '--pretty=%s'], 
+                cwd=os.getcwd(),
+                text=True
+            ).strip()
+        except Exception:
+            current_commit = 'unknown'
+            current_commit_msg = 'unknown'
+        
+        logger.info(f"Restart initiated by user {message.from_user.id} ({message.from_user.username})")
+        logger.info(f"Current commit before restart: {current_commit[:8]} - {current_commit_msg}")
+        
+        # Force pull from GitHub
+        try:
+            # Reset any local changes
+            subprocess.run(['git', 'reset', '--hard', 'HEAD'], check=True, cwd=os.getcwd())
+            
+            # Force pull latest code
+            subprocess.run(['git', 'pull', '--force', 'origin', 'main'], check=True, cwd=os.getcwd())
+            
+            # Get new commit info
+            new_commit = subprocess.check_output(
+                ['git', 'rev-parse', 'HEAD'], 
+                cwd=os.getcwd(),
+                text=True
+            ).strip()
+            
+            new_commit_msg = subprocess.check_output(
+                ['git', 'log', '-1', '--pretty=%s'], 
+                cwd=os.getcwd(),
+                text=True
+            ).strip()
+            
+            new_commit_author = subprocess.check_output(
+                ['git', 'log', '-1', '--pretty=%an'], 
+                cwd=os.getcwd(),
+                text=True
+            ).strip()
+            
+            new_commit_date = subprocess.check_output(
+                ['git', 'log', '-1', '--pretty=%ad', '--date=relative'], 
+                cwd=os.getcwd(),
+                text=True
+            ).strip()
+            
+        except subprocess.CalledProcessError as e:
+            await restart_msg.edit_text(f"❌ **Restart Failed**\n\n🚫 Git pull failed: {e}")
+            logger.error(f"Git pull failed during restart: {e}")
+            return
+        
+        # Update restart status file with git info
+        restart_data.update({
+            'status': 'code_updated',
+            'old_commit': current_commit,
+            'old_commit_msg': current_commit_msg,
+            'new_commit': new_commit,
+            'new_commit_msg': new_commit_msg,
+            'new_commit_author': new_commit_author,
+            'new_commit_date': new_commit_date,
+            'pull_time': datetime.now().isoformat()
+        })
+        
+        with open(restart_file, 'w', encoding='utf-8') as f:
+            json.dump(restart_data, f, indent=2)
+        
+        # Check if there were any changes
+        if current_commit == new_commit:
+            update_status = "📋 **No new updates** (already on latest)"
+        else:
+            update_status = f"✅ **Code updated successfully**\n📝 **New commit:** `{new_commit[:8]}`\n💬 **Message:** {new_commit_msg}\n👤 **Author:** {new_commit_author}\n⏰ **Date:** {new_commit_date}"
+        
+        # Final message before restart
+        final_message = f"""🔄 **Restarting Bot...**
+
+{update_status}
+
+🔄 **Restarting Python process...**
+⏳ Bot will be back online shortly!
+
+*This message will be updated with restart status...*"""
+        
+        await restart_msg.edit_text(final_message, parse_mode=ParseMode.HTML)
+        
+        # Update final status
+        restart_data.update({
+            'status': 'restarting',
+            'final_message_time': datetime.now().isoformat()
+        })
+        
+        with open(restart_file, 'w', encoding='utf-8') as f:
+            json.dump(restart_data, f, indent=2)
+        
+        logger.info(f"Restarting bot process. New commit: {new_commit[:8]} - {new_commit_msg}")
+        
+        # Give a moment for the message to be sent
+        await asyncio.sleep(1)
+        
+        # Restart the bot process
+        os.execv(sys.executable, ['python'] + sys.argv)
+        
+    except Exception as e:
+        logger.error(f"Error in restart command: {e}")
+        try:
+            await restart_msg.edit_text(f"❌ **Restart Failed**\n\n🚫 Error: {str(e)}")
+        except:
+            await message.reply_text(f"❌ **Restart Failed**\n\n🚫 Error: {str(e)}")
+
+
+async def check_restart_status():
+    """Check and update restart status message on bot startup."""
+    restart_file = 'restart_status.json'
+    
+    if not os.path.exists(restart_file):
+        return
+    
+    try:
+        with open(restart_file, 'r', encoding='utf-8') as f:
+            restart_data = json.load(f)
+        
+        # Only process if restart was in progress
+        if restart_data.get('status') in ['starting', 'code_updated', 'restarting']:
+            from pyrogram import Client
+            
+            # Create a temporary client to update the message
+            temp_client = Client(
+                "temp_restart_client",
+                bot_token=settings.bot_token,
+                api_id=settings.api_id,
+                api_hash=settings.api_hash
+            )
+            
+            async with temp_client:
+                # Get updated commit info
+                try:
+                    current_commit = subprocess.check_output(
+                        ['git', 'rev-parse', 'HEAD'], 
+                        cwd=os.getcwd(),
+                        text=True
+                    ).strip()
+                    
+                    current_commit_msg = subprocess.check_output(
+                        ['git', 'log', '-1', '--pretty=%s'], 
+                        cwd=os.getcwd(),
+                        text=True
+                    ).strip()
+                    
+                    current_commit_author = subprocess.check_output(
+                        ['git', 'log', '-1', '--pretty=%an'], 
+                        cwd=os.getcwd(),
+                        text=True
+                    ).strip()
+                    
+                    restart_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+                    
+                except Exception:
+                    current_commit = 'unknown'
+                    current_commit_msg = 'unknown'
+                    current_commit_author = 'unknown'
+                    restart_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+                
+                # Prepare success message
+                old_commit = restart_data.get('old_commit', 'unknown')
+                new_commit = restart_data.get('new_commit', current_commit)
+                
+                if old_commit == new_commit:
+                    update_info = "📋 **No new updates** (already on latest version)"
+                else:
+                    update_info = f"""✅ **Code updated successfully**
+📝 **New commit:** `{current_commit[:8]}`
+💬 **Message:** {current_commit_msg}  
+👤 **Author:** {current_commit_author}"""
+                
+                success_message = f"""✅ **Bot Restarted Successfully!**
+
+{update_info}
+
+🔄 **Restart completed:** {restart_time}
+⚡ **Status:** Bot is now online and ready!
+
+*Restart initiated by @{restart_data.get('username', 'Unknown')}*"""
+                
+                # Update the original message
+                await temp_client.edit_message_text(
+                    chat_id=restart_data['chat_id'],
+                    message_id=restart_data['message_id'],
+                    text=success_message,
+                    parse_mode=ParseMode.HTML
+                )
+                
+                logger.info(f"Restart completed successfully. Updated message for restart initiated by {restart_data.get('username', 'Unknown')}")
+        
+        # Clean up the restart status file
+        os.remove(restart_file)
+        
+    except Exception as e:
+        logger.error(f"Error updating restart status: {e}")
+        # Clean up the file even if update failed
+        try:
+            os.remove(restart_file)
+        except:
+            pass
