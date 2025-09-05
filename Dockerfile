@@ -1,5 +1,5 @@
 # Use a lightweight Python base image with proper package management
-FROM python:3.11-slim
+FROM python:3.13.7-slim
 
 # Set the working directory
 WORKDIR /usr/src/app

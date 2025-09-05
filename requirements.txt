@@ -4,7 +4,7 @@ tgcrypto
 pymongo
 python-dotenv
 aiohttp
-aioredis
+aioredis>=2.0.1
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 imdbinfo
