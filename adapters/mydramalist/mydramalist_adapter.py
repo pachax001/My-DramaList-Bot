@@ -1,13 +1,13 @@
 """MyDramaList adapter with async HTTP and caching."""
 
+import time
 from typing import Dict, List, Optional, Any
-import html
-from infra.http import http_client
-from infra.config import settings
+
 from infra.cache import cache_client
+from infra.config import settings
+from infra.http import http_client
 from infra.logging import get_logger, log_performance
 from infra.ratelimit import api_limiter
-import time
 
 logger = get_logger(__name__)
 

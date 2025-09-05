@@ -1,10 +1,12 @@
 """Redis caching with TTL management."""
 
 import asyncio
-import json
 import hashlib
-from typing import Any, Optional, Union
+import json
+from typing import Any, Optional
+
 import aioredis
+
 from infra.config import settings
 from infra.logging import get_logger
 
@@ -20,7 +22,8 @@ class CacheClient:
     async def start(self) -> None:
         """Initialize Redis connection with connection pooling."""
         try:
-            self._redis = await aioredis.from_url(
+            # aioredis.from_url() is synchronous in aioredis 2.0+
+            self._redis = aioredis.from_url(
                 settings.redis_url,
                 encoding='utf-8',
                 decode_responses=True,
@@ -43,7 +46,14 @@ class CacheClient:
         """Close Redis connection."""
         if self._redis:
             try:
-                await self._redis.close()
+                # Use aclose() for proper async closing in aioredis 2.0+
+                if hasattr(self._redis, 'aclose'):
+                    await self._redis.aclose()
+                elif hasattr(self._redis, 'close'):
+                    # Fallback for older versions
+                    close_method = self._redis.close()
+                    if hasattr(close_method, '__await__'):
+                        await close_method
                 logger.info("Redis cache client closed")
             except Exception as e:
                 logger.warning(f"Error closing Redis connection: {e}")

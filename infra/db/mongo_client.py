@@ -1,8 +1,10 @@
 """Async MongoDB client with connection pooling."""
 
-from typing import Optional, Dict, Any
+from typing import Optional
+
 import motor.motor_asyncio
 from pymongo.errors import ConnectionFailure
+
 from infra.config import settings
 from infra.logging import get_logger
 

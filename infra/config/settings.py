@@ -1,10 +1,11 @@
 """12-factor configuration management."""
 
-import os
 import sys
-from typing import Optional
+from typing import Any, Optional
+
 from dotenv import load_dotenv
-from pydantic import BaseSettings, validator
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
 
 # Load environment from .env file if it exists, but prioritize actual env vars
 load_dotenv(override=False)
@@ -42,14 +43,16 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"
     
-    @validator('api_id', pre=True)
-    def parse_api_id(cls, v) -> int:
+    @field_validator('api_id', mode='before')
+    @classmethod
+    def parse_api_id(cls, v: Any) -> int:
         if isinstance(v, str) and v.isdigit():
             return int(v)
         return v
     
-    @validator('owner_id', pre=True)  
-    def parse_owner_id(cls, v) -> int:
+    @field_validator('owner_id', mode='before')
+    @classmethod
+    def parse_owner_id(cls, v: Any) -> int:
         if isinstance(v, str) and v.isdigit():
             return int(v)
         return v
@@ -77,6 +80,8 @@ class Settings(BaseSettings):
     class Config:
         env_prefix = ""
         case_sensitive = False
+        # Pydantic V2 compatibility
+        extra = 'ignore'
 
 
 # Global settings instance

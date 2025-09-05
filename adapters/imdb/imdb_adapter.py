@@ -85,7 +85,7 @@ class IMDBAdapter:
                 return None
             
             # Transform to consistent format
-            details = self._transform_movie_data(movie)
+            details = self._transform_movie_data(movie, imdb_id)
             
             # Cache for 24 hours (movie details don't change often)
             await cache_client.set("imdb_details", cache_key, details, ttl=86400)
@@ -129,34 +129,48 @@ class IMDBAdapter:
             logger.error(f"IMDB details error: {e}")
             return None
     
-    def _transform_movie_data(self, movie: Dict[str, Any]) -> Dict[str, Any]:
+    def _transform_movie_data(self, movie: Dict[str, Any], imdb_id: str) -> Dict[str, Any]:
         """Transform imdbinfo data to expected format."""
         def safe(value: Any, default: str = "N/A") -> str:
-            if value is None or (hasattr(value, '__len__') and len(value) == 0):
+            """Safely convert value to string with fallback."""
+            if value is None:
+                return default
+            if hasattr(value, '__len__') and len(value) == 0:
                 return default
             return str(value)
         
         def list_to_str(items: Any, separator: str = ", ") -> str:
+            """Convert list or other iterable to string representation."""
             if not items:
                 return "N/A"
             if isinstance(items, list):
                 return separator.join(str(item) for item in items[:5])  # Limit to 5 items
+            if isinstance(items, str):
+                return items
             return str(items)
         
-        # Plot handling
-        plot = movie.get('plot_outline') or movie.get('plot')
-        if isinstance(plot, list) and plot:
-            plot = plot[0]
-        if plot and len(plot) > 200:
-            plot = plot[:200] + "..."
-        plot = safe(html.escape(plot) if plot else None, "No plot available")
+        # Plot handling with proper type checking
+        plot_raw = movie.get('plot_outline') or movie.get('plot')
+        if isinstance(plot_raw, list) and plot_raw:
+            plot_raw = plot_raw[0]
         
-        # Release date fallback
+        # Ensure plot is a string before processing
+        if plot_raw and isinstance(plot_raw, str):
+            if len(plot_raw) > 200:
+                plot_raw = plot_raw[:200] + "..."
+            plot = safe(html.escape(plot_raw), "No plot available")
+        else:
+            plot = "No plot available"
+        
+        # Release date fallback with type safety
         release_date = (
             movie.get("original_air_date") or 
             movie.get("release_date") or
             movie.get("year")
         )
+        # Ensure release_date is properly handled
+        if release_date and not isinstance(release_date, str):
+            release_date = str(release_date)
         
         return {
             'title': safe(movie.get('title')),

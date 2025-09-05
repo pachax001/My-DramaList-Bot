@@ -4,8 +4,10 @@ import asyncio
 import json
 import random
 from typing import Any, Dict, Optional
+
 import aiohttp
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientSession, ClientTimeout, ClientResponseError
+
 from infra.config import settings
 from infra.logging import get_logger
 
@@ -82,7 +84,6 @@ class HTTPClient:
                         # Fallback for non-JSON responses
                         text = await response.text()
                         try:
-                            import json
                             data = json.loads(text)
                         except json.JSONDecodeError:
                             logger.warning(f"Non-JSON response from {url}: {content_type}")
@@ -97,14 +98,20 @@ class HTTPClient:
                     return None
                 logger.warning(f"GET {url} timeout (attempt {attempt + 1}), retrying...")
                 
-            except aiohttp.ClientError as e:
+            except ClientResponseError as e:
                 if attempt == max_retries:
                     logger.error(f"GET {url} failed after {max_retries + 1} attempts: {e}")
                     return None
                 
                 # Don't retry on client errors (4xx), only server errors (5xx) and network issues
-                if hasattr(e, 'status') and 400 <= e.status < 500:
+                if 400 <= e.status < 500:
                     logger.error(f"GET {url} client error {e.status}, not retrying")
+                    return None
+                    
+            except aiohttp.ClientError as e:
+                # Handle other client errors (network issues, etc.)
+                if attempt == max_retries:
+                    logger.error(f"GET {url} failed after {max_retries + 1} attempts: {e}")
                     return None
             
             # Exponential backoff with jitter for retries

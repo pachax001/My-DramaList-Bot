@@ -5,7 +5,8 @@ pymongo
 python-dotenv
 aiohttp
 aioredis
-pydantic
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
 imdbinfo
 motor
 certifi

@@ -2,9 +2,9 @@
 
 import asyncio
 import time
-from concurrent.futures import ThreadPoolExecutor
-from typing import List
+
 import aiohttp
+
 from infra.config import settings
 
 
