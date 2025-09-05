@@ -31,15 +31,27 @@ class CacheClient:
                 socket_connect_timeout=5,
                 socket_keepalive=True
             )
-            # Test connection with timeout
-            await asyncio.wait_for(self._redis.ping(), timeout=5.0)
-            logger.info("Redis cache client connected with connection pooling")
-        except asyncio.TimeoutError:
-            logger.warning("Redis connection timeout, caching disabled")
-            self._redis = None
-        except Exception as e:
-            logger.warning(f"Redis unavailable, caching disabled: {e}")
-            self._redis = None
+            # Test connection with retries and longer timeout
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    await asyncio.wait_for(self._redis.ping(), timeout=10.0)
+                    logger.info("Redis cache client connected with connection pooling")
+                    return
+                except asyncio.TimeoutError:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Redis connection timeout (attempt {attempt + 1}/{max_retries}), retrying...")
+                        await asyncio.sleep(2)
+                    else:
+                        logger.warning("Redis connection timeout after all retries, caching disabled")
+                        self._redis = None
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Redis connection failed (attempt {attempt + 1}/{max_retries}): {e}, retrying...")
+                        await asyncio.sleep(2)
+                    else:
+                        logger.warning(f"Redis unavailable after all retries, caching disabled: {e}")
+                        self._redis = None
     
     async def close(self) -> None:
         """Close Redis connection."""

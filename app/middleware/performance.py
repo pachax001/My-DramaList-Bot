@@ -68,7 +68,14 @@ class HealthChecker:
                 await cache_client._redis.ping()
                 results['redis'] = 'healthy'
             else:
-                results['redis'] = 'disabled'
+                # Try to reconnect if Redis was disabled
+                logger.info("Attempting to reconnect to Redis...")
+                await cache_client.start()
+                if cache_client._redis:
+                    await cache_client._redis.ping()
+                    results['redis'] = 'healthy (reconnected)'
+                else:
+                    results['redis'] = 'disabled'
         except Exception as e:
             results['redis'] = f'error: {e}'
         
