@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Any, Optional
 
-import aioredis
+import redis.asyncio as redis
 
 from infra.config import settings
 from infra.logging import get_logger
@@ -17,20 +17,19 @@ class CacheClient:
     """Redis client with intelligent caching and TTL management."""
     
     def __init__(self) -> None:
-        self._redis: Optional[aioredis.Redis] = None
+        self._redis: Optional[redis.Redis] = None
     
     async def start(self) -> None:
         """Initialize Redis connection with connection pooling."""
         try:
-            # aioredis.from_url() is synchronous in aioredis 2.0+
-            self._redis = aioredis.from_url(
+            # Create Redis connection using redis-py async
+            self._redis = redis.from_url(
                 settings.redis_url,
                 encoding='utf-8',
                 decode_responses=True,
                 max_connections=20,  # Connection pool size
                 socket_connect_timeout=5,
-                socket_keepalive=True,
-                socket_keepalive_options={}
+                socket_keepalive=True
             )
             # Test connection with timeout
             await asyncio.wait_for(self._redis.ping(), timeout=5.0)
@@ -46,14 +45,8 @@ class CacheClient:
         """Close Redis connection."""
         if self._redis:
             try:
-                # Use aclose() for proper async closing in aioredis 2.0+
-                if hasattr(self._redis, 'aclose'):
-                    await self._redis.aclose()
-                elif hasattr(self._redis, 'close'):
-                    # Fallback for older versions
-                    close_method = self._redis.close()
-                    if hasattr(close_method, '__await__'):
-                        await close_method
+                # Close Redis connection using redis-py async
+                await self._redis.aclose()
                 logger.info("Redis cache client closed")
             except Exception as e:
                 logger.warning(f"Error closing Redis connection: {e}")
