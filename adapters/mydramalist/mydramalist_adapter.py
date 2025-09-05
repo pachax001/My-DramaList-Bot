@@ -1,5 +1,6 @@
 """MyDramaList adapter with async HTTP and caching."""
 
+import re
 import time
 from typing import Dict, List, Optional, Any
 
@@ -92,6 +93,45 @@ class MyDramaListAdapter:
         except Exception as e:
             logger.error(f"MyDramaList details failed for '{slug}': {e}")
             return None
+    
+    def extract_slug_from_url(self, url: str) -> Optional[str]:
+        """Extract drama slug from MyDramaList URL."""
+        try:
+            # MyDramaList URL patterns:
+            # https://mydramalist.com/12345-drama-name
+            # https://mydramalist.com/drama-name
+            # https://www.mydramalist.com/12345-drama-name
+            
+            # Clean the URL
+            url = url.strip()
+            if not url.startswith(('http://', 'https://')):
+                return None
+            
+            # Extract path from URL
+            pattern = r'(?:www\.)?mydramalist\.com/([^/?#]+)'
+            match = re.search(pattern, url, re.IGNORECASE)
+            
+            if match:
+                slug = match.group(1)
+                # Remove any trailing parameters
+                slug = slug.split('?')[0].split('#')[0]
+                logger.info(f"Extracted slug '{slug}' from URL: {url}")
+                return slug
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to extract slug from URL '{url}': {e}")
+            return None
+    
+    async def get_drama_by_url(self, url: str) -> Optional[Dict[str, Any]]:
+        """Get drama details by MyDramaList URL."""
+        slug = self.extract_slug_from_url(url)
+        if not slug:
+            logger.warning(f"Could not extract slug from URL: {url}")
+            return None
+        
+        return await self.get_drama_details(slug)
 
 
 # Global MyDramaList adapter instance

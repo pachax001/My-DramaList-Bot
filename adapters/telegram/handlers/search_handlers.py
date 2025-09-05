@@ -236,15 +236,134 @@ async def close_search_results(client: Client, callback_query: CallbackQuery) ->
         await callback_query.answer()
 
 
-# Placeholder handlers (implement as needed)
 async def handle_drama_url(client: Client, message: Message) -> None:
-    """Handle /mdlurl command."""
-    await message.reply_text("🚧 URL search functionality coming soon!")
+    """Handle /mdlurl command for MyDramaList URL search."""
+    set_correlation_id(str(uuid.uuid4()))
+    user_id = message.from_user.id
+    
+    # Apply user rate limiting first
+    if not await user_limiter.is_allowed(f"user:{user_id}", limit=10, window=60):
+        await message.reply_text(
+            "🚦 You're sending requests too quickly. Please wait a moment before trying again."
+        )
+        return
+    
+    # Check authorization (simplified)
+    public_setting = await mongo_client.db.settings.find_one({"key": "public_mode"})
+    is_public = public_setting.get("value", True) if public_setting else True
+    
+    if not is_public:
+        # Check if user is authorized
+        auth_user = await mongo_client.db.authorized_users.find_one({"user_id": user_id})
+        if not auth_user:
+            await message.reply_text("❌ You are not authorized to use this bot.")
+            return
+    
+    # Parse URL
+    parts = message.text.split(" ", 1)
+    if len(parts) < 2:
+        await message.reply_text(
+            "Usage: /mdlurl <mydramalist_url>\n\n"
+            "Example: /mdlurl https://mydramalist.com/12345-drama-name"
+        )
+        return
+    
+    url = parts[1].strip()
+    logger.info(f"User {user_id} requesting MDL URL: {url}")
+    
+    processing_msg = await message.reply_text("🔍 Processing MyDramaList URL...")
+    
+    try:
+        # Get drama details from URL
+        drama_data = await mydramalist_adapter.get_drama_by_url(url)
+        
+        if not drama_data:
+            await processing_msg.edit_text("❌ Could not retrieve drama details from this URL. Please check the URL and try again.")
+            return
+        
+        # Extract slug for callback data
+        slug = mydramalist_adapter.extract_slug_from_url(url)
+        if not slug:
+            slug = "unknown"
+        
+        # Get user template
+        user_template_doc = await mongo_client.db.mdl_templates.find_one({"user_id": user_id})
+        user_template = user_template_doc.get("template") if user_template_doc else None
+        
+        # Build caption
+        caption = template_service.build_mdl_caption(drama_data, slug, user_template)
+        
+        # Create close button
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("🚫 Close", callback_data="close_search")]])
+        
+        # Send details
+        await processing_msg.edit_text(caption, reply_markup=markup)
+        
+    except Exception as e:
+        logger.error(f"Error in MDL URL processing: {e}")
+        await processing_msg.edit_text("❌ Failed to process URL. Please try again later.")
 
 
 async def handle_imdb_url(client: Client, message: Message) -> None:
-    """Handle /imdburl command."""
-    await message.reply_text("🚧 IMDB URL search functionality coming soon!")
+    """Handle /imdburl command for IMDB URL search."""
+    set_correlation_id(str(uuid.uuid4()))
+    user_id = message.from_user.id
+    
+    # Apply user rate limiting first
+    if not await user_limiter.is_allowed(f"user:{user_id}", limit=10, window=60):
+        await message.reply_text(
+            "🚦 You're sending requests too quickly. Please wait a moment before trying again."
+        )
+        return
+    
+    # Check authorization (simplified)
+    public_setting = await mongo_client.db.settings.find_one({"key": "public_mode"})
+    is_public = public_setting.get("value", True) if public_setting else True
+    
+    if not is_public:
+        auth_user = await mongo_client.db.authorized_users.find_one({"user_id": user_id})
+        if not auth_user:
+            await message.reply_text("❌ You are not authorized to use this bot.")
+            return
+    
+    # Parse URL
+    parts = message.text.split(" ", 1)
+    if len(parts) < 2:
+        await message.reply_text(
+            "Usage: /imdburl <imdb_url>\n\n"
+            "Example: /imdburl https://www.imdb.com/title/tt1234567/"
+        )
+        return
+    
+    url = parts[1].strip()
+    logger.info(f"User {user_id} requesting IMDB URL: {url}")
+    
+    processing_msg = await message.reply_text("🔍 Processing IMDB URL...")
+    
+    try:
+        # Get movie details from URL
+        movie_data = await imdb_adapter.get_movie_by_url(url)
+        
+        if not movie_data:
+            await processing_msg.edit_text("❌ Could not retrieve movie details from this URL. Please check the URL and try again.")
+            return
+        
+        # Get user template
+        user_template_doc = await mongo_client.db.imdb_templates.find_one({"user_id": user_id})
+        user_template = user_template_doc.get("template") if user_template_doc else None
+        
+        # Build caption
+        caption = template_service.build_imdb_caption(movie_data, user_template)
+        
+        # Create close button
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("🚫 Close", callback_data="close_search")]])
+        
+        # Send details
+        await processing_msg.edit_text(caption, reply_markup=markup)
+        
+    except Exception as e:
+        logger.error(f"Error in IMDB URL processing: {e}")
+        await processing_msg.edit_text("❌ Failed to process URL. Please try again later.")
 
 
 async def imdb_pagination_callback(client: Client, callback_query: CallbackQuery) -> None:

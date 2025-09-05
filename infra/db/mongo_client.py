@@ -53,14 +53,14 @@ class MongoClient:
     @property
     def db(self) -> motor.motor_asyncio.AsyncIOMotorDatabase:
         """Get database instance."""
-        if not self._db:
+        if self._db is None:
             raise RuntimeError("MongoDB not connected. Call start() first.")
         return self._db
     
     async def health_check(self) -> bool:
         """Check if MongoDB is healthy."""
         try:
-            if not self._client:
+            if self._client is None:
                 return False
             await self._client.admin.command('ping')
             return True

@@ -2,6 +2,7 @@
 
 from typing import Dict, List, Optional, Any
 import html
+import re
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from infra.logging import get_logger, log_performance
@@ -200,6 +201,46 @@ class IMDBAdapter:
             'imdb_id': safe(f"tt{imdb_id}"),
             'release_date': safe(release_date),
         }
+    
+    def extract_imdb_id_from_url(self, url: str) -> Optional[str]:
+        """Extract IMDB ID from IMDB URL."""
+        try:
+            # IMDB URL patterns:
+            # https://www.imdb.com/title/tt1234567/
+            # https://imdb.com/title/tt1234567
+            # https://m.imdb.com/title/tt1234567/
+            
+            # Clean the URL
+            url = url.strip()
+            if not url.startswith(('http://', 'https://')):
+                return None
+            
+            # Extract IMDB ID from URL
+            pattern = r'(?:www\.|m\.)?imdb\.com/title/(tt\d+)'
+            match = re.search(pattern, url, re.IGNORECASE)
+            
+            if match:
+                imdb_id = match.group(1)
+                # Remove 'tt' prefix for internal use
+                if imdb_id.startswith('tt'):
+                    imdb_id = imdb_id[2:]
+                logger.info(f"Extracted IMDB ID '{imdb_id}' from URL: {url}")
+                return imdb_id
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to extract IMDB ID from URL '{url}': {e}")
+            return None
+    
+    async def get_movie_by_url(self, url: str) -> Optional[Dict[str, Any]]:
+        """Get movie details by IMDB URL."""
+        imdb_id = self.extract_imdb_id_from_url(url)
+        if not imdb_id:
+            logger.warning(f"Could not extract IMDB ID from URL: {url}")
+            return None
+        
+        return await self.get_movie_details(imdb_id)
 
 
 # Global IMDB adapter instance
