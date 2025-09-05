@@ -15,6 +15,7 @@
 - 🚀 **Real-Time Progress Tracking** - Live broadcast progress with speed and success rate monitoring
 - 📱 **Universal Message Support** - Broadcast photos, videos, documents, stickers, locations, and more
 - 🎨 **Full HTML Support** - Rich text formatting in broadcast messages with HTML tags
+- 🔄 **Auto-Restart System** - Force pull from GitHub and restart bot with real-time status updates
 - 🧹 **Code Optimization** - Removed unused code, optimized imports, and improved performance
 - 🛠️ **Better Log Management** - Improved `/log` command with automatic log file detection
 - 💾 **Advanced Redis Caching** - 2GB memory limit with intelligent TTL management  
@@ -57,6 +58,7 @@
 - `/broadcast <message>` - ✨ **Enhanced** Mass broadcast to all users (see detailed guide below)
 - `/health` - Check service health status (Redis, MongoDB, etc.)
 - `/cachereload` - Clear all caches and restart cache client
+- `/restart` - 🔄 **New** Force pull from GitHub and restart bot (see detailed guide below)
 
 ---
 
@@ -156,6 +158,96 @@ During broadcast, you'll see live updates:
 - **Polls**: Cannot be broadcasted (Telegram API limitation)
 - **Rate Limits**: Respects Telegram's ~30 messages per second limit
 - **Large Files**: Very large media files may cause timeouts
+
+---
+
+## 🔄 **Auto-Restart System** ✨
+
+### **🚀 Instant Code Updates & Restart**
+The bot includes a powerful restart system that allows instant code updates from GitHub:
+
+- **✅ Force Pull**: Gets latest code from GitHub repository
+- **✅ Zero Downtime**: Quick restart with minimal service interruption
+- **✅ Status Tracking**: Real-time progress updates during restart process
+- **✅ Commit Details**: Shows exactly what changed after update
+- **✅ Rollback Support**: Automatic backups before major updates
+
+### **🎯 How It Works**
+
+#### **Step 1: Initiate Restart**
+```
+/restart
+```
+🔄 **Restarting Bot...**
+⏳ Starting restart process...
+
+#### **Step 2: Code Update**
+```
+🔄 Restarting Bot...
+📡 Pulling latest code from GitHub...
+```
+
+#### **Step 3: Update Summary**
+```
+🔄 Restarting Bot...
+
+✅ Code updated successfully
+📝 New commit: abc12345
+💬 Message: Fix search performance bug
+👤 Author: Developer Name  
+⏰ Date: 2 hours ago
+
+🔄 Restarting Python process...
+⏳ Bot will be back online shortly!
+```
+
+#### **Step 4: Success Confirmation**
+After restart, the same message gets updated with:
+```
+✅ Bot Restarted Successfully!
+
+✅ Code updated successfully
+📝 New commit: abc12345
+💬 Message: Fix search performance bug
+👤 Author: Developer Name
+
+🔄 Restart completed: 2025-09-05 20:30:45 UTC
+⚡ Status: Bot is now online and ready!
+
+Restart initiated by @YourUsername
+```
+
+### **🛡️ Safety Features**
+
+- **Owner Only**: Only bot owner can restart the system
+- **Force Pull**: `git reset --hard` + `git pull --force` ensures clean updates
+- **Status Persistence**: Restart progress saved to file and updated after reboot
+- **Error Handling**: Failed git operations are reported with detailed error messages
+- **Commit Tracking**: Shows old vs new commit with full details
+
+### **📊 What Gets Updated**
+
+| Component | Update Method | Notes |
+|-----------|---------------|-------|
+| **Source Code** | Git force pull | All Python files, configs, etc. |
+| **Dependencies** | Auto-detected | Only if requirements.txt changed |
+| **Configuration** | Environment variables | .env changes require manual restart |
+| **Database Schema** | Manual migration | Database changes need separate handling |
+
+### **🔧 Use Cases**
+
+- **Bug Fixes**: Instantly deploy critical bug fixes
+- **New Features**: Add new commands and functionality  
+- **Security Updates**: Apply security patches immediately
+- **Performance Improvements**: Deploy optimization updates
+- **Configuration Changes**: Update API endpoints, rate limits, etc.
+
+### **⚠️ Important Notes**
+
+- **Database Changes**: Schema changes may require manual migration
+- **Environment Variables**: .env changes need container restart
+- **Git Repository**: Must be properly configured with GitHub repository
+- **Permissions**: Bot must have git access to the repository
 
 ---
 

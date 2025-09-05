@@ -22,6 +22,10 @@ logs/
 *.log
 update.log
 
+# Runtime status files
+restart_status.json
+temp_restart_client.session*
+
 # Virtual environments
 venv/
 .venv/
