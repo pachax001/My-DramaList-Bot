@@ -119,6 +119,7 @@ Type `@botusername <query>` in any chat to search MyDramaList inline
 /broadcast <message> - Send message to all users
 /log - Get bot logs
 /health - Check service health
+/cachereload - Clear all caches and restart cache client
 
 **💡 Template Guide:**
 
@@ -265,6 +266,79 @@ async def set_public_mode_command(client: Client, message: Message):
     except Exception as e:
         logger.error(f"Error setting public mode: {e}")
         await message.reply_text("❌ Failed to update public mode.")
+
+
+async def cache_reload_command(client: Client, message: Message):
+    """Hot reload cache - clear all caches and restart cache client."""
+    if message.from_user.id != settings.owner_id:
+        await message.reply_text("❌ Only bot owner can reload caches.")
+        return
+    
+    try:
+        from infra.cache import cache_client
+        from infra.ratelimit.limiter import api_limiter, user_limiter, global_limiter
+        
+        # Clear all cache namespaces
+        cache_stats = {}
+        if cache_client._redis:
+            # Get cache info before clearing
+            info = await cache_client._redis.info('memory')
+            cache_stats['before_memory'] = info.get('used_memory_human', 'Unknown')
+            
+            # Clear all keys with our namespace prefixes
+            namespaces = ['v1:imdb_search:*', 'v1:imdb_details:*', 'v1:mdl_search:*', 
+                         'v1:mdl_details:*', 'v1:user_templates:*', 'ratelimit:*']
+            
+            cleared_count = 0
+            for pattern in namespaces:
+                keys = await cache_client._redis.keys(pattern)
+                if keys:
+                    cleared_count += await cache_client._redis.delete(*keys)
+            
+            cache_stats['cleared_keys'] = cleared_count
+            
+            # Get memory info after clearing
+            info = await cache_client._redis.info('memory')
+            cache_stats['after_memory'] = info.get('used_memory_human', 'Unknown')
+        else:
+            # Clear local rate limiter buckets
+            api_limiter._local_buckets.clear()
+            user_limiter._local_buckets.clear()
+            global_limiter._local_buckets.clear()
+            cache_stats['local_buckets_cleared'] = True
+        
+        # Restart Redis connection
+        await cache_client.close()
+        await cache_client.start()
+        
+        connection_status = "✅ Connected" if cache_client._redis else "⚠️ Unavailable (local fallback)"
+        
+        stats_text = f"""
+🔄 <b>Cache Reload Complete</b>
+
+🗄️ <b>Redis Status:</b> {connection_status}
+"""
+        
+        if 'cleared_keys' in cache_stats:
+            stats_text += f"""
+📊 <b>Cleared Data:</b>
+• Keys cleared: {cache_stats['cleared_keys']}
+• Memory before: {cache_stats['before_memory']}
+• Memory after: {cache_stats['after_memory']}
+"""
+        elif 'local_buckets_cleared' in cache_stats:
+            stats_text += """
+📊 <b>Cleared Data:</b>
+• Local rate limit buckets cleared
+• Redis unavailable, using local fallback
+"""
+        
+        logger.info(f"Cache reload completed by owner {settings.owner_id}")
+        await message.reply_text(stats_text, parse_mode=ParseMode.HTML)
+        
+    except Exception as e:
+        logger.error(f"Error reloading cache: {e}")
+        await message.reply_text(f"❌ Cache reload failed: {str(e)}")
 
 
 async def manual_broadcast_command(client: Client, message: Message):

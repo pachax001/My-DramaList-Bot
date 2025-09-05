@@ -18,11 +18,18 @@ services:
     image: redis:7-alpine
     container_name: mydramalist-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
       - redis-data:/data
     networks:
       - bot-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
 
 volumes:
   redis-data:

@@ -126,21 +126,66 @@ class CacheClient:
         cache_none: bool = False,  # Whether to cache None results
         **kwargs
     ) -> Any:
-        """Execute function with intelligent caching."""
+        """Execute function with intelligent caching and distributed locking."""
         # Try cache first
         cached = await self.get(namespace, key)
         if cached is not None:
             logger.debug(f"Cache hit for {namespace}:{key}")
             return cached
         
-        # Execute function
+        # Use distributed lock to prevent race conditions
+        lock_key = f"lock:{namespace}:{key}"
+        lock_ttl = 30  # 30 second lock timeout
+        
+        if self._redis:
+            try:
+                # Try to acquire distributed lock
+                lock_acquired = await self._redis.set(lock_key, "1", nx=True, ex=lock_ttl)
+                
+                if lock_acquired:
+                    try:
+                        # Double-check cache after acquiring lock
+                        cached = await self.get(namespace, key)
+                        if cached is not None:
+                            logger.debug(f"Cache hit after lock for {namespace}:{key}")
+                            return cached
+                        
+                        # Execute function
+                        logger.debug(f"Cache miss for {namespace}:{key}, executing function with lock")
+                        result = await func(*args, **kwargs)
+                        
+                        # Cache result based on policy
+                        if result is not None or cache_none:
+                            adaptive_ttl = self._get_adaptive_ttl(namespace, ttl)
+                            await self.set(namespace, key, result, adaptive_ttl)
+                        
+                        return result
+                    finally:
+                        # Release lock
+                        await self._redis.delete(lock_key)
+                else:
+                    # Lock not acquired, wait briefly and check cache again
+                    await asyncio.sleep(0.1)
+                    cached = await self.get(namespace, key)
+                    if cached is not None:
+                        logger.debug(f"Cache hit after waiting for {namespace}:{key}")
+                        return cached
+                    
+                    # If still no cache hit, execute without lock (fallback)
+                    logger.debug(f"Executing without lock for {namespace}:{key}")
+                    result = await func(*args, **kwargs)
+                    return result
+                    
+            except Exception as lock_error:
+                logger.warning(f"Lock error for {namespace}:{key}: {lock_error}, proceeding without lock")
+        
+        # Fallback: execute function without distributed lock
         logger.debug(f"Cache miss for {namespace}:{key}, executing function")
         try:
             result = await func(*args, **kwargs)
             
             # Cache result based on policy
             if result is not None or cache_none:
-                # Use adaptive TTL based on namespace
                 adaptive_ttl = self._get_adaptive_ttl(namespace, ttl)
                 await self.set(namespace, key, result, adaptive_ttl)
             

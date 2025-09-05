@@ -59,6 +59,7 @@ class BotCommandManager:
             BotCommand("broadcast", "Send message to all users"),
             BotCommand("log", "Get bot log files"),
             BotCommand("health", "Check service health status"),
+            BotCommand("cachereload", "Clear all caches and restart cache client"),
         ]
         return base_commands + owner_only_commands
     

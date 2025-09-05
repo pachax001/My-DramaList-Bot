@@ -15,6 +15,7 @@ class RateLimiter:
     def __init__(self, namespace: str = "ratelimit") -> None:
         self.namespace = namespace
         self._local_buckets: Dict[str, Dict] = {}
+        self._last_cleanup = time.time()
     
     async def is_allowed(
         self, 
@@ -113,7 +114,12 @@ class RateLimiter:
         burst: int,
         current_time: float
     ) -> bool:
-        """Local memory token bucket rate limiting."""
+        """Local memory token bucket rate limiting with cleanup."""
+        # Cleanup old buckets every 10 minutes
+        if current_time - self._last_cleanup > 600:
+            await self._cleanup_old_buckets(current_time)
+            self._last_cleanup = current_time
+        
         if key not in self._local_buckets:
             self._local_buckets[key] = {
                 'tokens': burst,
@@ -161,6 +167,26 @@ class RateLimiter:
                 self._local_buckets.pop(key, None)
         except Exception as e:
             logger.warning(f"Failed to reset rate limit for {key}: {e}")
+    
+    async def _cleanup_old_buckets(self, current_time: float) -> None:
+        """Clean up old unused buckets to prevent memory leaks."""
+        try:
+            # Remove buckets that haven't been used for over 1 hour
+            cleanup_threshold = 3600
+            keys_to_remove = []
+            
+            for key, bucket in self._local_buckets.items():
+                if current_time - bucket['last_refill'] > cleanup_threshold:
+                    keys_to_remove.append(key)
+            
+            for key in keys_to_remove:
+                del self._local_buckets[key]
+            
+            if keys_to_remove:
+                logger.info(f"Cleaned up {len(keys_to_remove)} old rate limit buckets")
+                
+        except Exception as e:
+            logger.warning(f"Error during bucket cleanup: {e}")
 
 
 # Global rate limiter instances

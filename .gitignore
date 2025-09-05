@@ -1,22 +1,56 @@
-# vscode
-.vscode
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
-#config.env
+# Configuration files (sensitive)
 config.env
 .env
 *.env
+sample_config.env
 
-#bot session
+# Bot session files
 mydramalist_bot.session
+mydramalist_bot.session-journal
+*.session
+*.session-journal
 
-#log file
+# Log files
 log.txt
+logs/
+*.log
+update.log
 
-# virtualenv
-venv
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
 
-# python cache
-__pycache__
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 
+# Backup directories
+backups/
+tmp/
+temp/
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
 CLAUDE.md
 .claude/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/

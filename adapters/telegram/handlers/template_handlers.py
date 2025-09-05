@@ -4,6 +4,7 @@ from pyrogram import Client
 from pyrogram.types import Message
 from infra.logging import get_logger
 from infra.db import mongo_client
+from infra.cache import cache_client
 
 logger = get_logger(__name__)
 
@@ -49,6 +50,9 @@ async def set_template_command(client: Client, message: Message):
             upsert=True
         )
         
+        # Invalidate user template cache
+        await cache_client.delete("user_templates", f"mdl_{user_id}")
+        
         logger.info(f"User {user_id} set MDL template")
         await message.reply_text("✅ MyDramaList template set successfully!")
         
@@ -62,10 +66,18 @@ async def get_template_command(client: Client, message: Message):
     user_id = message.from_user.id
     
     try:
-        template_doc = await mongo_client.db.mdl_templates.find_one({"user_id": user_id})
+        # Try cache first
+        template = await cache_client.get("user_templates", f"mdl_{user_id}")
         
-        if template_doc:
-            template = template_doc.get("template", "")
+        if template is None:
+            # Cache miss, get from database
+            template_doc = await mongo_client.db.mdl_templates.find_one({"user_id": user_id})
+            if template_doc:
+                template = template_doc.get("template", "")
+                # Cache the template for 2 hours
+                await cache_client.set("user_templates", f"mdl_{user_id}", template, ttl=7200)
+        
+        if template:
             await message.reply_text(f"📝 Your current MyDramaList template:\n\n`{template}`")
         else:
             await message.reply_text("ℹ️ You don't have a custom MyDramaList template set.")
@@ -83,6 +95,9 @@ async def remove_template_command(client: Client, message: Message):
         result = await mongo_client.db.mdl_templates.delete_one({"user_id": user_id})
         
         if result.deleted_count > 0:
+            # Invalidate user template cache
+            await cache_client.delete("user_templates", f"mdl_{user_id}")
+            
             logger.info(f"User {user_id} removed MDL template")
             await message.reply_text("✅ MyDramaList template removed successfully!")
         else:
@@ -98,9 +113,18 @@ async def preview_template_command(client: Client, message: Message):
     user_id = message.from_user.id
     
     try:
-        template_doc = await mongo_client.db.mdl_templates.find_one({"user_id": user_id})
+        # Try cache first
+        template = await cache_client.get("user_templates", f"mdl_{user_id}")
         
-        if not template_doc:
+        if template is None:
+            # Cache miss, get from database
+            template_doc = await mongo_client.db.mdl_templates.find_one({"user_id": user_id})
+            if template_doc:
+                template = template_doc.get("template", "")
+                # Cache the template for 2 hours
+                await cache_client.set("user_templates", f"mdl_{user_id}", template, ttl=7200)
+        
+        if not template:
             await message.reply_text("ℹ️ You don't have a custom MyDramaList template set.")
             return
         
@@ -134,7 +158,7 @@ async def preview_template_command(client: Client, message: Message):
         }
         
         try:
-            preview = template_doc["template"].format(**mock_data)
+            preview = template.format(**mock_data)
             await message.reply_text(f"👁️ **Template Preview:**\n\n{preview}")
         except KeyError as e:
             await message.reply_text(f"❌ Template error: Unknown placeholder {e}")
@@ -189,6 +213,9 @@ async def set_imdb_template_command(client: Client, message: Message):
             upsert=True
         )
         
+        # Invalidate user template cache
+        await cache_client.delete("user_templates", f"imdb_{user_id}")
+        
         logger.info(f"User {user_id} set IMDB template")
         await message.reply_text("✅ IMDB template set successfully!")
         
@@ -202,10 +229,18 @@ async def get_imdb_template_command(client: Client, message: Message):
     user_id = message.from_user.id
     
     try:
-        template_doc = await mongo_client.db.imdb_templates.find_one({"user_id": user_id})
+        # Try cache first
+        template = await cache_client.get("user_templates", f"imdb_{user_id}")
         
-        if template_doc:
-            template = template_doc.get("template", "")
+        if template is None:
+            # Cache miss, get from database
+            template_doc = await mongo_client.db.imdb_templates.find_one({"user_id": user_id})
+            if template_doc:
+                template = template_doc.get("template", "")
+                # Cache the template for 2 hours
+                await cache_client.set("user_templates", f"imdb_{user_id}", template, ttl=7200)
+        
+        if template:
             await message.reply_text(f"📝 Your current IMDB template:\n\n`{template}`")
         else:
             await message.reply_text("ℹ️ You don't have a custom IMDB template set.")
@@ -223,6 +258,9 @@ async def remove_imdb_template_command(client: Client, message: Message):
         result = await mongo_client.db.imdb_templates.delete_one({"user_id": user_id})
         
         if result.deleted_count > 0:
+            # Invalidate user template cache
+            await cache_client.delete("user_templates", f"imdb_{user_id}")
+            
             logger.info(f"User {user_id} removed IMDB template")
             await message.reply_text("✅ IMDB template removed successfully!")
         else:
@@ -238,9 +276,18 @@ async def preview_imdb_template_command(client: Client, message: Message):
     user_id = message.from_user.id
     
     try:
-        template_doc = await mongo_client.db.imdb_templates.find_one({"user_id": user_id})
+        # Try cache first
+        template = await cache_client.get("user_templates", f"imdb_{user_id}")
         
-        if not template_doc:
+        if template is None:
+            # Cache miss, get from database
+            template_doc = await mongo_client.db.imdb_templates.find_one({"user_id": user_id})
+            if template_doc:
+                template = template_doc.get("template", "")
+                # Cache the template for 2 hours
+                await cache_client.set("user_templates", f"imdb_{user_id}", template, ttl=7200)
+        
+        if not template:
             await message.reply_text("ℹ️ You don't have a custom IMDB template set.")
             return
         
@@ -285,7 +332,7 @@ async def preview_imdb_template_command(client: Client, message: Message):
         }
         
         try:
-            preview = template_doc["template"].format(**mock_data)
+            preview = template.format(**mock_data)
             await message.reply_text(f"👁️ **Template Preview:**\n\n{preview}")
         except KeyError as e:
             await message.reply_text(f"❌ Template error: Unknown placeholder {e}")

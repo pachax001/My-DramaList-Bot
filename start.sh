@@ -1,23 +1,366 @@
 #!/bin/bash
+set -euo pipefail
 
-# Check if uvloop is available
-python3 -c "import uvloop" 2>/dev/null
-if [ $? -eq 0 ]; then
-    echo "✅ uvloop detected - running in high performance mode"
-else
-    echo "⚠️ uvloop not available (continuing without it)"
-fi
+# MyDramaList Bot Startup Script
+# This script handles bot startup, updates, and basic maintenance tasks
 
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BOT_NAME="MyDramaList Bot"
+LOG_DIR="$SCRIPT_DIR/logs"
+VENV_DIR="$SCRIPT_DIR/.venv"
+REQUIREMENTS_FILE="$SCRIPT_DIR/requirements.txt"
+UPDATE_REPO="${UPDATE_REPO:-https://github.com/pachax001/My-DramaList-Bot}"
+UPDATE_BRANCH="${UPDATE_BRANCH:-main}"
 
-# Optimize kernel network settings (ignore failures in containers)
-echo 65536 > /proc/sys/net/core/somaxconn 2>/dev/null || echo "⚠️ Cannot modify kernel settings in container (expected)"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
 
-if python3 -O update.py; then
-  echo "Update step completed."
-else
-  echo "Update step failed (continuing anyway)..." >&2
-fi
+# Logging functions
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
 
-# Run the bot with optimizations
-echo "🚀 Starting MyDramaList Bot..."
-exec python3 -O main.py
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
+
+log_step() {
+    echo -e "${BLUE}[STEP]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
+
+# Helper functions
+check_command() {
+    if ! command -v "$1" &> /dev/null; then
+        log_error "$1 is not installed or not in PATH"
+        return 1
+    fi
+    return 0
+}
+
+wait_for_input() {
+    echo -n "Press Enter to continue or Ctrl+C to cancel..."
+    read -r
+}
+
+# Setup functions
+setup_directories() {
+    log_step "Setting up directories"
+    mkdir -p "$LOG_DIR"
+    mkdir -p "backups"
+    log_info "Directories created successfully"
+}
+
+setup_python_env() {
+    log_step "Setting up Python environment"
+    
+    # Check Python version
+    if ! check_command python3; then
+        log_error "Python 3 is required but not found"
+        exit 1
+    fi
+    
+    local python_version
+    python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    log_info "Found Python $python_version"
+    
+    # Create virtual environment if it doesn't exist
+    if [ ! -d "$VENV_DIR" ]; then
+        log_info "Creating Python virtual environment"
+        python3 -m venv "$VENV_DIR"
+    fi
+    
+    # Activate virtual environment
+    # shellcheck source=/dev/null
+    source "$VENV_DIR/bin/activate"
+    
+    # Upgrade pip
+    log_info "Upgrading pip"
+    pip install --upgrade pip
+    
+    # Install requirements
+    if [ -f "$REQUIREMENTS_FILE" ]; then
+        log_info "Installing Python dependencies"
+        pip install -r "$REQUIREMENTS_FILE"
+    else
+        log_warn "requirements.txt not found, skipping dependency installation"
+    fi
+    
+    log_info "Python environment setup complete"
+}
+
+check_config() {
+    log_step "Checking configuration"
+    
+    # Check for required files
+    local required_files=("main.py" "requirements.txt")
+    for file in "${required_files[@]}"; do
+        if [ ! -f "$SCRIPT_DIR/$file" ]; then
+            log_error "Required file missing: $file"
+            exit 1
+        fi
+    done
+    
+    # Check environment file
+    if [ ! -f "$SCRIPT_DIR/config.env" ] && [ ! -f "$SCRIPT_DIR/.env" ]; then
+        log_warn "No config.env or .env file found"
+        log_warn "Make sure to set environment variables for the bot"
+        echo
+        echo "Required environment variables:"
+        echo "  - BOT_TOKEN: Your Telegram bot token"
+        echo "  - API_ID: Your Telegram API ID" 
+        echo "  - API_HASH: Your Telegram API hash"
+        echo "  - OWNER_ID: Your Telegram user ID"
+        echo "  - MONGO_URI: MongoDB connection string"
+        echo
+        echo "Optional variables:"
+        echo "  - REDIS_URL: Redis connection URL (default: redis://localhost:6379/0)"
+        echo "  - IS_PUBLIC: Set to 'true' for public bot access"
+        echo
+        wait_for_input
+    fi
+    
+    log_info "Configuration check complete"
+}
+
+# Update functions
+run_secure_update() {
+    log_step "Running secure update"
+    
+    if [ -z "$UPDATE_REPO" ]; then
+        log_warn "UPDATE_REPO not set, skipping update"
+        return 0
+    fi
+    
+    if [ ! -f "$SCRIPT_DIR/update.py" ]; then
+        log_error "update.py not found, cannot perform update"
+        return 1
+    fi
+    
+    log_info "Updating from repository: $UPDATE_REPO"
+    log_info "Branch: $UPDATE_BRANCH"
+    
+    # Run the secure update script
+    if python3 "$SCRIPT_DIR/update.py" --repo "$UPDATE_REPO" --branch "$UPDATE_BRANCH"; then
+        log_info "Update completed successfully"
+        
+        # Reinstall dependencies if requirements changed
+        if [ -f "$REQUIREMENTS_FILE" ]; then
+            log_info "Reinstalling dependencies after update"
+            # shellcheck source=/dev/null
+            source "$VENV_DIR/bin/activate"
+            pip install -r "$REQUIREMENTS_FILE"
+        fi
+        
+        return 0
+    else
+        log_error "Update failed"
+        return 1
+    fi
+}
+
+# Health check functions
+check_services() {
+    log_step "Checking service dependencies"
+    
+    # Check Redis (if configured to use external Redis)
+    if [ "${REDIS_URL:-}" != "" ] && [[ "$REDIS_URL" != "redis://redis:6379"* ]]; then
+        if command -v redis-cli &> /dev/null; then
+            local redis_host redis_port
+            redis_host=$(echo "$REDIS_URL" | sed -E 's|redis://([^:]+):.*|\1|')
+            redis_port=$(echo "$REDIS_URL" | sed -E 's|redis://[^:]+:([0-9]+).*|\1|')
+            
+            if redis-cli -h "$redis_host" -p "$redis_port" ping >/dev/null 2>&1; then
+                log_info "Redis connection: OK"
+            else
+                log_warn "Redis connection: FAILED"
+            fi
+        else
+            log_warn "redis-cli not available, skipping Redis check"
+        fi
+    fi
+    
+    # Check MongoDB connectivity (basic check)
+    if [ "${MONGO_URI:-}" != "" ]; then
+        if command -v mongosh &> /dev/null || command -v mongo &> /dev/null; then
+            log_info "MongoDB client available"
+        else
+            log_warn "No MongoDB client found, skipping connection test"
+        fi
+    fi
+    
+    log_info "Service dependency check complete"
+}
+
+check_performance_features() {
+    log_step "Checking performance features"
+    
+    # Check if uvloop is available
+    if python3 -c "import uvloop" 2>/dev/null; then
+        log_info "✅ uvloop detected - high performance mode available"
+    else
+        log_warn "⚠️ uvloop not available (continuing without it)"
+    fi
+    
+    # Try to optimize kernel network settings (ignore failures in containers)
+    if echo 65536 > /proc/sys/net/core/somaxconn 2>/dev/null; then
+        log_info "Kernel network settings optimized"
+    else
+        log_warn "Cannot modify kernel settings (expected in containers)"
+    fi
+}
+
+# Main functions
+start_bot() {
+    log_step "Starting $BOT_NAME"
+    
+    # Activate virtual environment
+    # shellcheck source=/dev/null
+    source "$VENV_DIR/bin/activate"
+    
+    # Change to script directory
+    cd "$SCRIPT_DIR"
+    
+    # Create log file with timestamp
+    local log_file="$LOG_DIR/bot_$(date +%Y%m%d_%H%M%S).log"
+    
+    # Start the bot
+    log_info "Bot starting... Logs: $log_file"
+    echo
+    echo -e "${BOLD}=== $BOT_NAME Starting ===${NC}"
+    echo
+    
+    # Run with proper error handling and Python optimizations
+    if python3 -O main.py 2>&1 | tee "$log_file"; then
+        log_info "Bot exited normally"
+    else
+        log_error "Bot exited with error code $?"
+        exit 1
+    fi
+}
+
+show_usage() {
+    echo -e "${BOLD}MyDramaList Bot Startup Script${NC}"
+    echo
+    echo "Usage: $0 [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "  --update          Run update before starting (if UPDATE_REPO is set)"
+    echo "  --setup           Run initial setup only (create venv, install deps)"
+    echo "  --check           Run health checks only"  
+    echo "  --start           Start the bot (default)"
+    echo "  --help            Show this help message"
+    echo
+    echo "Environment Variables:"
+    echo "  UPDATE_REPO       Repository URL for updates (optional)"
+    echo "  UPDATE_BRANCH     Git branch for updates (default: main)"
+    echo
+    echo "Examples:"
+    echo "  $0                                    # Start bot normally"
+    echo "  $0 --setup                           # Setup environment only"
+    echo "  $0 --update                          # Update then start"
+    echo "  UPDATE_REPO=https://github.com/user/repo.git $0 --update"
+    echo
+}
+
+# Main script logic
+main() {
+    local run_update=false
+    local setup_only=false
+    local check_only=false
+    local show_help=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --update)
+                run_update=true
+                shift
+                ;;
+            --setup)
+                setup_only=true
+                shift
+                ;;
+            --check)
+                check_only=true
+                shift
+                ;;
+            --help)
+                show_help=true
+                shift
+                ;;
+            --start)
+                # Default behavior, just consume the argument
+                shift
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    if [ "$show_help" = true ]; then
+        show_usage
+        exit 0
+    fi
+    
+    # Show banner
+    echo -e "${BOLD}=== $BOT_NAME Startup Script ===${NC}"
+    echo "Directory: $SCRIPT_DIR"
+    echo "Timestamp: $(date)"
+    echo
+    
+    # Always setup directories
+    setup_directories
+    
+    # Run setup
+    setup_python_env
+    
+    if [ "$setup_only" = true ]; then
+        log_info "Setup completed successfully"
+        exit 0
+    fi
+    
+    # Check configuration
+    check_config
+    
+    # Run health checks
+    if [ "$check_only" = true ]; then
+        check_services
+        check_performance_features
+        log_info "Health checks completed"
+        exit 0
+    fi
+    
+    # Run update if requested
+    if [ "$run_update" = true ]; then
+        if ! run_secure_update; then
+            log_error "Update failed, aborting startup"
+            exit 1
+        fi
+    fi
+    
+    # Final health check and performance setup
+    check_services
+    check_performance_features
+    
+    # Start the bot
+    start_bot
+}
+
+# Handle signals gracefully
+trap 'log_info "Script interrupted by user"; exit 130' INT TERM
+
+# Run main function with all arguments
+main "$@"
