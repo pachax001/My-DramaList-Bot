@@ -1,37 +1,30 @@
-# Use a lightweight Debian base image
-FROM debian:bookworm-slim
+# Use a lightweight Python base image with proper package management
+FROM python:3.11-slim
 
 # Set the working directory
 WORKDIR /usr/src/app
 
-# Install necessary packages
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-venv \
-    python3-pip \
     build-essential \
-    python3-dev \
-    libffi-dev \
-    bash \
     git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy requirements first for better caching
+COPY requirements.txt .
 
-# Create a virtual environment
-RUN python3 -m venv /usr/src/app/venv
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application files
+# Copy application files
 COPY . .
 
-# Activate the virtual environment and install dependencies
-RUN /usr/src/app/venv/bin/pip install --no-cache-dir -r requirements.txt
+# Configure git for container environment
+RUN git config --global --add safe.directory /usr/src/app
 
 # Make start.sh executable
 RUN chmod +x start.sh
-
-# Ensure the virtual environment is used by default
-ENV PATH="/usr/src/app/venv/bin:$PATH"
 
 # Run the application
 CMD ["bash", "start.sh"]
