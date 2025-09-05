@@ -52,6 +52,9 @@ class CacheClient:
                     else:
                         logger.warning(f"Redis unavailable after all retries, caching disabled: {e}")
                         self._redis = None
+        except Exception as e:
+            logger.warning(f"Redis initialization failed: {e}")
+            self._redis = None
     
     async def close(self) -> None:
         """Close Redis connection."""
