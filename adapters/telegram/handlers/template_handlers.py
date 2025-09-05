@@ -2,6 +2,7 @@
 
 from pyrogram import Client
 from pyrogram.types import Message
+from pyrogram.enums import ParseMode
 from infra.logging import get_logger
 from infra.db import mongo_client
 from infra.cache import cache_client
@@ -20,24 +21,25 @@ async def set_template_command(client: Client, message: Message):
         parts = message.text.split(' ', 1)
         if len(parts) < 2:
             await message.reply_text(
-                "**Usage:** `/setmdltemplate <template>` or reply to a template message\n\n"
-                "**Example Template:**\n"
-                "```\n"
-                "🎭 <b>{title}</b>\n"
+                "<b>Usage:</b> <code>/setmdltemplate &lt;template&gt;</code> or reply to a template message\n\n"
+                "<b>Example Template:</b>\n"
+                "<pre>\n"
+                "🎭 &lt;b&gt;{title}&lt;/b&gt;\n"
                 "📍 {country} | Episodes: {episodes}\n"
                 "⭐ Rating: {rating}\n"
                 "🎬 Genres: {genres}\n"
                 "📖 {synopsis}\n"
-                "```\n\n"
-                "**Popular Placeholders:**\n"
-                "• `{title}` - Drama title\n"
-                "• `{rating}` - User rating\n"
-                "• `{synopsis}` - Plot summary\n"
-                "• `{country}` - Country of origin\n"
-                "• `{episodes}` - Number of episodes\n"
-                "• `{genres}` - Genres with emojis\n"
-                "• `{year}` - Release year\n\n"
-                "Use /mdlplaceholders to see all available placeholders!"
+                "</pre>\n\n"
+                "<b>Popular Placeholders:</b>\n"
+                "• <code>{title}</code> - Drama title\n"
+                "• <code>{rating}</code> - User rating\n"
+                "• <code>{synopsis}</code> - Plot summary\n"
+                "• <code>{country}</code> - Country of origin\n"
+                "• <code>{episodes}</code> - Number of episodes\n"
+                "• <code>{genres}</code> - Genres with emojis\n"
+                "• <code>{year}</code> - Release year\n\n"
+                "Use /mdlplaceholders to see all available placeholders!",
+                parse_mode=ParseMode.HTML
             )
             return
         template = parts[1]
@@ -78,7 +80,7 @@ async def get_template_command(client: Client, message: Message):
                 await cache_client.set("user_templates", f"mdl_{user_id}", template, ttl=7200)
         
         if template:
-            await message.reply_text(f"📝 Your current MyDramaList template:\n\n`{template}`")
+            await message.reply_text(f"📝 Your current MyDramaList template:\n\n<code>{template}</code>", parse_mode=ParseMode.HTML)
         else:
             await message.reply_text("ℹ️ You don't have a custom MyDramaList template set.")
             
@@ -159,7 +161,7 @@ async def preview_template_command(client: Client, message: Message):
         
         try:
             preview = template.format(**mock_data)
-            await message.reply_text(f"👁️ **Template Preview:**\n\n{preview}")
+            await message.reply_text(f"👁️ <b>Template Preview:</b>\n\n{preview}", parse_mode=ParseMode.HTML)
         except KeyError as e:
             await message.reply_text(f"❌ Template error: Unknown placeholder {e}")
         except Exception as e:
@@ -182,25 +184,26 @@ async def set_imdb_template_command(client: Client, message: Message):
         parts = message.text.split(' ', 1)
         if len(parts) < 2:
             await message.reply_text(
-                "**Usage:** `/setimdbtemplate <template>` or reply to a template message\n\n"
-                "**Example Template:**\n"
-                "```\n"
-                "🎬 <b>{title}</b> ({year})\n"
+                "<b>Usage:</b> <code>/setimdbtemplate &lt;template&gt;</code> or reply to a template message\n\n"
+                "<b>Example Template:</b>\n"
+                "<pre>\n"
+                "🎬 &lt;b&gt;{title}&lt;/b&gt; ({year})\n"
                 "⭐ {rating}/10 ({votes} votes)\n"
                 "🎭 Cast: {cast}\n"
                 "🎬 Directors: {directors}\n"
                 "📝 {plot}\n"
-                "```\n\n"
-                "**Popular Placeholders:**\n"
-                "• `{title}` - Movie/show title\n"
-                "• `{year}` - Release year\n"
-                "• `{rating}` - IMDB rating\n"
-                "• `{votes}` - Number of votes\n"
-                "• `{cast}` - Main cast with characters\n"
-                "• `{directors}` - Directors\n"
-                "• `{plot}` - Plot summary\n"
-                "• `{genres}` - Genres with emojis\n\n"
-                "Use /imdbplaceholders to see all 50+ available placeholders!"
+                "</pre>\n\n"
+                "<b>Popular Placeholders:</b>\n"
+                "• <code>{title}</code> - Movie/show title\n"
+                "• <code>{year}</code> - Release year\n"
+                "• <code>{rating}</code> - IMDB rating\n"
+                "• <code>{votes}</code> - Number of votes\n"
+                "• <code>{cast}</code> - Main cast with characters\n"
+                "• <code>{directors}</code> - Directors\n"
+                "• <code>{plot}</code> - Plot summary\n"
+                "• <code>{genres}</code> - Genres with emojis\n\n"
+                "Use /imdbplaceholders to see all 50+ available placeholders!",
+                parse_mode=ParseMode.HTML
             )
             return
         template = parts[1]
@@ -241,7 +244,7 @@ async def get_imdb_template_command(client: Client, message: Message):
                 await cache_client.set("user_templates", f"imdb_{user_id}", template, ttl=7200)
         
         if template:
-            await message.reply_text(f"📝 Your current IMDB template:\n\n`{template}`")
+            await message.reply_text(f"📝 Your current IMDB template:\n\n<code>{template}</code>", parse_mode=ParseMode.HTML)
         else:
             await message.reply_text("ℹ️ You don't have a custom IMDB template set.")
             
@@ -333,7 +336,7 @@ async def preview_imdb_template_command(client: Client, message: Message):
         
         try:
             preview = template.format(**mock_data)
-            await message.reply_text(f"👁️ **Template Preview:**\n\n{preview}")
+            await message.reply_text(f"👁️ <b>Template Preview:</b>\n\n{preview}", parse_mode=ParseMode.HTML)
         except KeyError as e:
             await message.reply_text(f"❌ Template error: Unknown placeholder {e}")
         except Exception as e:
@@ -347,147 +350,147 @@ async def preview_imdb_template_command(client: Client, message: Message):
 async def mdl_placeholders_command(client: Client, message: Message):
     """Show all available MyDramaList placeholders."""
     placeholders_text = """
-📋 **MyDramaList Template Placeholders**
+📋 <b>MyDramaList Template Placeholders</b>
 
-**📺 Basic Information:**
-• `{title}` - Drama title
-• `{complete_title}` - Full drama title
-• `{native_title}` - Original language title
-• `{also_known_as}` - Alternative names
-• `{year}` - Release year
-• `{rating}` - User rating
-• `{link}` - MyDramaList URL
+<b>📺 Basic Information:</b>
+• <code>{title}</code> - Drama title
+• <code>{complete_title}</code> - Full drama title
+• <code>{native_title}</code> - Original language title
+• <code>{also_known_as}</code> - Alternative names
+• <code>{year}</code> - Release year
+• <code>{rating}</code> - User rating
+• <code>{link}</code> - MyDramaList URL
 
-**📍 Details:**
-• `{country}` - Country of origin
-• `{type}` - Content type (Drama/Movie)
-• `{episodes}` - Number of episodes
-• `{duration}` - Episode duration
-• `{aired}` - Air date
-• `{aired_on}` - Broadcasting network
-• `{original_network}` - Original broadcaster
-• `{content_rating}` - Age rating
+<b>📍 Details:</b>
+• <code>{country}</code> - Country of origin
+• <code>{type}</code> - Content type (Drama/Movie)
+• <code>{episodes}</code> - Number of episodes
+• <code>{duration}</code> - Episode duration
+• <code>{aired}</code> - Air date
+• <code>{aired_on}</code> - Broadcasting network
+• <code>{original_network}</code> - Original broadcaster
+• <code>{content_rating}</code> - Age rating
 
-**📊 Stats & Rankings:**
-• `{score}` - Overall score
-• `{ranked}` - Ranking position
-• `{popularity}` - Popularity ranking
-• `{watchers}` - Number of watchers
-• `{favorites}` - Times favorited
+<b>📊 Stats & Rankings:</b>
+• <code>{score}</code> - Overall score
+• <code>{ranked}</code> - Ranking position
+• <code>{popularity}</code> - Popularity ranking
+• <code>{watchers}</code> - Number of watchers
+• <code>{favorites}</code> - Times favorited
 
-**🎭 Content:**
-• `{synopsis}` - Plot summary
-• `{genres}` - Genres with emojis
-• `{tags}` - Drama tags
-• `{poster}` - Poster image URL
+<b>🎭 Content:</b>
+• <code>{synopsis}</code> - Plot summary
+• <code>{genres}</code> - Genres with emojis
+• <code>{tags}</code> - Drama tags
+• <code>{poster}</code> - Poster image URL
 
-**📅 Release Info:**
-• `{release_date}` - Release/air date
+<b>📅 Release Info:</b>
+• <code>{release_date}</code> - Release/air date
 
-**💡 Usage Tips:**
-• Use HTML formatting: `<b>bold</b>`, `<i>italic</i>`
+<b>💡 Usage Tips:</b>
+• Use HTML formatting: <code>&lt;b&gt;bold&lt;/b&gt;</code>, <code>&lt;i&gt;italic&lt;/i&gt;</code>
 • Add emojis for visual appeal
 • Keep templates under 1000 characters
-• Use `{link}` at the end for "See more..."
+• Use <code>{link}</code> at the end for "See more..."
 
-**Example:**
-```
-🎭 <b>{title}</b>
+<b>Example:</b>
+<pre>
+🎭 &lt;b&gt;{title}&lt;/b&gt;
 📍 {country} | {episodes} episodes
 ⭐ Rating: {rating}
 🎬 {genres}
 📖 {synopsis}
-🔗 <a href='{link}'>More details</a>
-```
+🔗 &lt;a href='{link}'&gt;More details&lt;/a&gt;
+</pre>
 """
-    await message.reply_text(placeholders_text)
+    await message.reply_text(placeholders_text, parse_mode=ParseMode.HTML)
 
 
 async def imdb_placeholders_command(client: Client, message: Message):
     """Show all available IMDB placeholders."""
     placeholders_text = """
-📋 **IMDB Template Placeholders**
+📋 <b>IMDB Template Placeholders</b>
 
-**🎬 Basic Information:**
-• `{title}` - Movie/show title
-• `{kind}` - Type (movie, tvSeries, etc.)
-• `{year}` - Release year
-• `{rating}` - IMDB rating (1-10)
-• `{votes}` - Number of votes
-• `{runtime}` - Duration
-• `{imdb_url}` - IMDB URL
-• `{imdb_id}` - IMDB ID (tt123456)
-• `{poster}` - Poster image URL
+<b>🎬 Basic Information:</b>
+• <code>{title}</code> - Movie/show title
+• <code>{kind}</code> - Type (movie, tvSeries, etc.)
+• <code>{year}</code> - Release year
+• <code>{rating}</code> - IMDB rating (1-10)
+• <code>{votes}</code> - Number of votes
+• <code>{runtime}</code> - Duration
+• <code>{imdb_url}</code> - IMDB URL
+• <code>{imdb_id}</code> - IMDB ID (tt123456)
+• <code>{poster}</code> - Poster image URL
 
-**🌍 Production:**
-• `{countries}` - Countries of origin
-• `{languages}` - Available languages
-• `{mpaa}` - MPAA rating (PG-13, R, etc.)
-• `{certificates}` - Content certificates
+<b>🌍 Production:</b>
+• <code>{countries}</code> - Countries of origin
+• <code>{languages}</code> - Available languages
+• <code>{mpaa}</code> - MPAA rating (PG-13, R, etc.)
+• <code>{certificates}</code> - Content certificates
 
-**👥 Cast & Crew:**
-• `{cast}` - Main cast with characters
-• `{cast_simple}` - Cast names only
-• `{directors}` - Directors
-• `{writers}` - Writers/Screenplay
-• `{producers}` - Producers
-• `{composers}` - Music composers
-• `{cinematographers}` - Cinematographers
-• `{editors}` - Film editors
-• `{production_designers}` - Production designers
-• `{costume_designers}` - Costume designers
+<b>👥 Cast & Crew:</b>
+• <code>{cast}</code> - Main cast with characters
+• <code>{cast_simple}</code> - Cast names only
+• <code>{directors}</code> - Directors
+• <code>{writers}</code> - Writers/Screenplay
+• <code>{producers}</code> - Producers
+• <code>{composers}</code> - Music composers
+• <code>{cinematographers}</code> - Cinematographers
+• <code>{editors}</code> - Film editors
+• <code>{production_designers}</code> - Production designers
+• <code>{costume_designers}</code> - Costume designers
 
-**📺 Series/Episode Info:**
-• `{is_series}` - True if TV series
-• `{is_episode}` - True if episode
-• `{series_info}` - Season information
-• `{episode_info}` - Episode number (S1E1)
+<b>📺 Series/Episode Info:</b>
+• <code>{is_series}</code> - True if TV series
+• <code>{is_episode}</code> - True if episode
+• <code>{series_info}</code> - Season information
+• <code>{episode_info}</code> - Episode number (S1E1)
 
-**📅 Release Information:**
-• `{release_dates}` - Release dates
-• `{premiere_date}` - Premiere date
-• `{original_air_date}` - Original air date (for TV)
+<b>📅 Release Information:</b>
+• <code>{release_dates}</code> - Release dates
+• <code>{premiere_date}</code> - Premiere date
+• <code>{original_air_date}</code> - Original air date (for TV)
 
-**🎥 Technical Details:**
-• `{aspect_ratios}` - Screen aspect ratios
-• `{sound_mix}` - Sound mixing formats
-• `{color_info}` - Color information
+<b>🎥 Technical Details:</b>
+• <code>{aspect_ratios}</code> - Screen aspect ratios
+• <code>{sound_mix}</code> - Sound mixing formats
+• <code>{color_info}</code> - Color information
 
-**💰 Box Office:**
-• `{budget}` - Production budget
-• `{gross}` - Gross earnings
-• `{box_office}` - Combined budget/gross
-• `{opening_weekend_usa}` - Opening weekend
+<b>💰 Box Office:</b>
+• <code>{budget}</code> - Production budget
+• <code>{gross}</code> - Gross earnings
+• <code>{box_office}</code> - Combined budget/gross
+• <code>{opening_weekend_usa}</code> - Opening weekend
 
-**🎭 Content:**
-• `{plot}` - Plot summary
-• `{genres}` - Genres with emojis
+<b>🎭 Content:</b>
+• <code>{plot}</code> - Plot summary
+• <code>{genres}</code> - Genres with emojis
 
-**💡 Usage Tips:**
+<b>💡 Usage Tips:</b>
 • Cast includes character names: "Actor (Character)"
-• Use `{cast_simple}` for names only
+• Use <code>{cast_simple}</code> for names only
 • Series show season info, episodes show S1E1 format
 • Box office data available for movies only
 
-**Example for Movies:**
-```
-🎬 <b>{title}</b> ({year})
+<b>Example for Movies:</b>
+<pre>
+🎬 &lt;b&gt;{title}&lt;/b&gt; ({year})
 ⭐ {rating}/10 ({votes} votes)
 🎭 {genres}
 🎪 Cast: {cast}
 🎬 Directed by: {directors}
 💰 {box_office}
 📝 {plot}
-```
+</pre>
 
-**Example for TV Series:**
-```
-📺 <b>{title}</b> ({year})
+<b>Example for TV Series:</b>
+<pre>
+📺 &lt;b&gt;{title}&lt;/b&gt; ({year})
 ⭐ {rating}/10 | {series_info}
 🎭 {genres}
 📅 Aired: {original_air_date}
 🎪 {cast}
 📝 {plot}
-```
+</pre>
 """
-    await message.reply_text(placeholders_text)
+    await message.reply_text(placeholders_text, parse_mode=ParseMode.HTML)

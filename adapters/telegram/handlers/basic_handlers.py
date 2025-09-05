@@ -66,12 +66,12 @@ async def start_command(client: Client, message: Message):
         # Regular users
         text = (
             f"👋 Welcome to MyDramaList Bot!\n\n"
-            "🎭 **Available Commands:**\n"
-            "/mdl <query> - Search MyDramaList\n"
-            "/imdb <query> - Search IMDB\n"
-            "/mdlurl <url> - Get drama by URL\n"
-            "/imdburl <url> - Get movie by URL\n\n"
-            "🎨 **Template Commands:**\n"
+            "🎭 <b>Available Commands:</b>\n"
+            "/mdl &lt;query&gt; - Search MyDramaList\n"
+            "/imdb &lt;query&gt; - Search IMDB\n"
+            "/mdlurl &lt;url&gt; - Get drama by URL\n"
+            "/imdburl &lt;url&gt; - Get movie by URL\n\n"
+            "🎨 <b>Template Commands:</b>\n"
             "/setmdltemplate - Set custom MDL template\n"
             "/setimdbtemplate - Set custom IMDB template\n\n"
             "Use /help for more detailed information!"
@@ -87,76 +87,76 @@ async def start_command(client: Client, message: Message):
 async def help_command(client: Client, message: Message):
     """Handle /help command."""
     help_text = """
-🎭 **MyDramaList & IMDB Telegram Bot**
+🎭 <b>MyDramaList & IMDB Telegram Bot</b>
 
-**🔍 Search Commands:**
-/mdl <query> - Search dramas on MyDramaList
-/mdl <url> - Process MyDramaList URL directly
-/imdb <query> - Search movies/shows on IMDB
-/imdb <url> - Process IMDB URL directly
-/mdlurl <url> - Get drama details by URL
-/imdburl <url> - Get movie/show details by URL
+<b>🔍 Search Commands:</b>
+/mdl &lt;query&gt; - Search dramas on MyDramaList
+/mdl &lt;url&gt; - Process MyDramaList URL directly
+/imdb &lt;query&gt; - Search movies/shows on IMDB
+/imdb &lt;url&gt; - Process IMDB URL directly
+/mdlurl &lt;url&gt; - Get drama details by URL
+/imdburl &lt;url&gt; - Get movie/show details by URL
 
-*You can also reply to messages containing URLs with these commands!*
+<i>You can also reply to messages containing URLs with these commands!</i>
 
-**🎨 Template Commands:**
-/setmdltemplate <template> - Set custom MyDramaList template
+<b>🎨 Template Commands:</b>
+/setmdltemplate &lt;template&gt; - Set custom MyDramaList template
 /getmdltemplate - View your current MDL template
 /removemdltemplate - Remove your MDL template
 /previewmdltemplate - Preview your MDL template
 /mdlplaceholders - Show all MyDramaList placeholders
 
-/setimdbtemplate <template> - Set custom IMDB template
+/setimdbtemplate &lt;template&gt; - Set custom IMDB template
 /getimdbtemplate - View your current IMDB template
 /removeimdbtemplate - Remove your IMDB template
 /previewimdbtemplate - Preview your IMDB template
 /imdbplaceholders - Show all IMDB placeholders
 
 
-**👑 Owner Commands:**
-/authorize <user_id> - Grant bot access
-/unauthorize <user_id> - Remove bot access
+<b>👑 Owner Commands:</b>
+/authorize &lt;user_id&gt; - Grant bot access
+/unauthorize &lt;user_id&gt; - Remove bot access
 /users - View authorized users
 /userstats - Get user statistics
-/setpublicmode <on/off> - Toggle public mode
-/broadcast <message> - Send message to all users
+/setpublicmode &lt;on/off&gt; - Toggle public mode
+/broadcast &lt;message&gt; - Send message to all users
 /log - Get bot logs
 /health - Check service health
 /cachereload - Clear all caches and restart cache client
 
-**💡 Template Guide:**
+<b>💡 Template Guide:</b>
 
-**Basic Example:**
-```
-<b>{title}</b> ({year})
+<b>Basic Example:</b>
+<pre>
+&lt;b&gt;{title}&lt;/b&gt; ({year})
 Rating: {rating} ⭐️
 {plot}
-```
+</pre>
 
-**MyDramaList Sample:**
-```
-🎭 <b>{title}</b>
+<b>MyDramaList Sample:</b>
+<pre>
+🎭 &lt;b&gt;{title}&lt;/b&gt;
 📍 Country: {country} | Episodes: {episodes}
 ⭐ Rating: {rating}
 🎬 Genres: {genres}
 📖 {synopsis}
-```
+</pre>
 
-**IMDB Sample:**
-```
-🎬 <b>{title}</b> ({year})
+<b>IMDB Sample:</b>
+<pre>
+🎬 &lt;b&gt;{title}&lt;/b&gt; ({year})
 ⭐ {rating}/10 ({votes} votes)
 🎭 Cast: {cast}
 🎬 Directors: {directors}
 📝 {plot}
-```
+</pre>
 
 Use /mdlplaceholders or /imdbplaceholders to see all available fields!
 
 Need help? Contact: @matthewmurdockbot
 """
     
-    await message.reply_text(help_text)
+    await message.reply_text(help_text, parse_mode=ParseMode.HTML)
 
 
 async def send_log(client: Client, message: Message):
@@ -470,10 +470,10 @@ async def manual_broadcast_command(client: Client, message: Message):
         parts = message.text.split(' ', 1)
         if len(parts) < 2:
             await message.reply_text(
-                "📢 **Broadcast Usage:**\n\n"
-                "**Method 1:** `/broadcast <message>` (supports HTML)\n"
-                "**Method 2:** Reply to any message with `/broadcast`\n\n"
-                "**Supported Types:**\n"
+                "📢 <b>Broadcast Usage:</b>\n\n"
+                "<b>Method 1:</b> <code>/broadcast &lt;message&gt;</code> (supports HTML)\n"
+                "<b>Method 2:</b> Reply to any message with <code>/broadcast</code>\n\n"
+                "<b>Supported Types:</b>\n"
                 "• 📝 Text (with HTML formatting)\n"
                 "• 🖼️ Photos with captions\n" 
                 "• 🎥 Videos with captions\n"
@@ -485,8 +485,8 @@ async def manual_broadcast_command(client: Client, message: Message):
                 "• 🎭 Stickers\n"
                 "• 📍 Locations\n"
                 "• 👤 Contacts\n\n"
-                "**HTML Tags Supported:**\n"
-                "`<b>bold</b>, <i>italic</i>, <u>underline</u>, <s>strikethrough</s>, <code>code</code>, <pre>preformatted</pre>, <a href='url'>link</a>`",
+                "<b>HTML Tags Supported:</b>\n"
+                "<code>&lt;b&gt;bold&lt;/b&gt;</code>, <code>&lt;i&gt;italic&lt;/i&gt;</code>, <code>&lt;u&gt;underline&lt;/u&gt;</code>, <code>&lt;s&gt;strikethrough&lt;/s&gt;</code>, <code>&lt;code&gt;code&lt;/code&gt;</code>, <code>&lt;pre&gt;preformatted&lt;/pre&gt;</code>, <code>&lt;a href='url'&gt;link&lt;/a&gt;</code>",
                 parse_mode=ParseMode.HTML
             )
             return
@@ -932,23 +932,23 @@ async def shell_command(client: Client, message: Message):
         command_parts = message.text.split(' ', 1)
         if len(command_parts) < 2:
             await message.reply_text(
-                "🐚 **Shell Command Usage:**\n\n"
-                "**Syntax:** `/shell <command>`\n\n"
-                "**Examples:**\n"
-                "• `/shell pip install requests`\n"
-                "• `/shell ls -la`\n"
-                "• `/shell git status`\n"
-                "• `/shell python --version`\n"
-                "• `/shell df -h`\n\n"
-                "⚠️ **Security Warning:**\n"
+                "🐚 <b>Shell Command Usage:</b>\n\n"
+                "<b>Syntax:</b> <code>/shell &lt;command&gt;</code>\n\n"
+                "<b>Examples:</b>\n"
+                "• <code>/shell pip install requests</code>\n"
+                "• <code>/shell ls -la</code>\n"
+                "• <code>/shell git status</code>\n"
+                "• <code>/shell python --version</code>\n"
+                "• <code>/shell df -h</code>\n\n"
+                "⚠️ <b>Security Warning:</b>\n"
                 "This command has full system access. Use with extreme caution!\n\n"
-                "**Safe Commands:**\n"
-                "• Package management: `pip install/uninstall`\n"
-                "• File operations: `ls`, `cat`, `head`, `tail`\n"
-                "• System info: `ps`, `df`, `free`, `uname`\n"
-                "• Git operations: `git status`, `git log`\n\n"
-                "**Dangerous Commands:**\n"
-                "❌ Avoid: `rm -rf`, `chmod 777`, `sudo su`, etc.",
+                "<b>Safe Commands:</b>\n"
+                "• Package management: <code>pip install/uninstall</code>\n"
+                "• File operations: <code>ls</code>, <code>cat</code>, <code>head</code>, <code>tail</code>\n"
+                "• System info: <code>ps</code>, <code>df</code>, <code>free</code>, <code>uname</code>\n"
+                "• Git operations: <code>git status</code>, <code>git log</code>\n\n"
+                "<b>Dangerous Commands:</b>\n"
+                "❌ Avoid: <code>rm -rf</code>, <code>chmod 777</code>, <code>sudo su</code>, etc.",
                 parse_mode=ParseMode.HTML
             )
             return
