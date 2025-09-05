@@ -11,9 +11,12 @@
 
 ## ✨ **What's New in v2.1**
 
+- 📢 **Enhanced Broadcast System** - Mass broadcasting to millions of users with all message types support
+- 🚀 **Real-Time Progress Tracking** - Live broadcast progress with speed and success rate monitoring
+- 📱 **Universal Message Support** - Broadcast photos, videos, documents, stickers, locations, and more
+- 🎨 **Full HTML Support** - Rich text formatting in broadcast messages with HTML tags
 - 🧹 **Code Optimization** - Removed unused code, optimized imports, and improved performance
 - 🛠️ **Better Log Management** - Improved `/log` command with automatic log file detection
-- 🚀 **Auto-Update System** - Automatic code updates from GitHub with backup/restore
 - 💾 **Advanced Redis Caching** - 2GB memory limit with intelligent TTL management  
 - 🔧 **Hot Cache Reload** - Admin command to clear all caches without restart
 - 🐳 **Enhanced Docker Support** - Complete containerization with persistent volumes
@@ -51,14 +54,108 @@
 - `/userstats` - Get comprehensive bot usage statistics
 - `/log` - Retrieve bot logs
 - `/setpublicmode <on/off>` - Toggle public mode
-- `/broadcast <message>` - Send message to all users (supports reply & HTML)
+- `/broadcast <message>` - ✨ **Enhanced** Mass broadcast to all users (see detailed guide below)
 - `/health` - Check service health status (Redis, MongoDB, etc.)
-- `/cachereload` - **NEW** Clear all caches and restart cache client
+- `/cachereload` - Clear all caches and restart cache client
 
 ---
 
 ### **Force Sub**
 - You can now enable force subscription for a channel. Make sure bot is an admin of the channel.
+
+---
+
+## 📢 **Enhanced Broadcast System** ✨
+
+### **🚀 Massive Scale Broadcasting**
+The bot supports broadcasting to **thousands or millions** of users efficiently:
+
+- **✅ Batch Processing**: Handles users in rate-limit friendly batches
+- **✅ Concurrent Sending**: Parallel message delivery within batches  
+- **✅ Memory Efficient**: Uses MongoDB cursor for large user bases
+- **✅ Real-time Progress**: Live updates during broadcast process
+- **✅ Performance**: ~1,800 messages/hour respecting Telegram limits
+
+### **📱 Supported Message Types**
+
+#### **Media Types:**
+- 🖼️ **Photos** with HTML captions
+- 🎥 **Videos** with HTML captions  
+- 🎬 **GIFs/Animations** with HTML captions
+- 📄 **Documents** with HTML captions
+- 🎵 **Audio files** with HTML captions
+- 🎙️ **Voice messages**
+- 📹 **Video notes (circles)**
+
+#### **Other Types:**
+- 🎭 **Stickers**
+- 📍 **Locations** 
+- 👤 **Contacts**
+- 📝 **Text messages** with full HTML formatting
+
+#### **HTML Tags Supported:**
+```html
+<b>bold</b>, <i>italic</i>, <u>underline</u>, <s>strikethrough</s>
+<code>code</code>, <pre>preformatted</pre>, <a href='url'>links</a>
+```
+
+### **🎯 Usage Methods**
+
+#### **Method 1: Direct Text Command**
+```
+/broadcast Hello <b>users</b>! This supports <i>HTML</i> formatting!
+```
+
+#### **Method 2: Reply to ANY Message**
+1. Send/forward any message (photo, video, sticker, etc.)
+2. Reply to it with `/broadcast`
+3. Bot broadcasts that exact message type to all users
+
+### **📊 Real-Time Progress Tracking**
+
+During broadcast, you'll see live updates:
+```
+📢 Broadcasting...
+👥 Total Users: 50,000
+📊 Progress: 45.2%
+📤 Sent: 22,150
+❌ Failed: 450
+⏱️ Speed: 28.5 msgs/sec
+⏰ Elapsed: 796s
+```
+
+### **✅ Final Summary Report**
+```
+✅ Broadcast Completed!
+👥 Total Users: 50,000
+📤 Successfully Sent: 48,750
+❌ Failed: 1,250
+📊 Success Rate: 97.5%
+⏰ Total Time: 1,750s
+⚡ Average Speed: 28.6 msgs/sec
+```
+
+### **🚀 Performance Estimates**
+
+| User Count | Estimated Time | Average Speed |
+|------------|---------------|---------------|
+| 1,000 users | ~2 minutes | ~8 msgs/sec |
+| 10,000 users | ~18 minutes | ~9 msgs/sec |
+| 100,000 users | ~3 hours | ~9 msgs/sec |
+| 1,000,000 users | ~31 hours | ~9 msgs/sec |
+
+### **🛡️ Safety Features**
+
+- **Owner Only**: Only bot owner can use broadcast
+- **Rate Limited**: Respects Telegram's API limits
+- **Error Resistant**: Failed sends don't crash the process
+- **Memory Efficient**: Handles millions of users without memory issues
+- **Detailed Logging**: All broadcast activities are logged for monitoring
+
+### **❌ Limitations**
+- **Polls**: Cannot be broadcasted (Telegram API limitation)
+- **Rate Limits**: Respects Telegram's ~30 messages per second limit
+- **Large Files**: Very large media files may cause timeouts
 
 ---
 
@@ -404,6 +501,7 @@ The bot follows a layered architecture pattern for high performance and maintain
 - **Circuit Breakers**: Fault tolerance with exponential backoff
 - **Code Optimization** ✨: Removed unused imports, dead code, and optimized dependencies  
 - **Enhanced Logging** ✨: Smart log file detection with automatic cleanup for large files
+- **Mass Broadcast System** ✨: Efficient broadcasting to millions of users with progress tracking
 - **Streamlined Architecture**: Reduced complexity and improved maintainability
 
 ---
@@ -455,12 +553,35 @@ docker exec mydramalist-bot python3 update.py --rollback backups/latest_backup
 ```
 
 
+#### **Broadcast Issues**
+```bash
+# Check if broadcast is running
+docker-compose logs mydramalist-bot | grep -i broadcast
+
+# Monitor broadcast progress
+# Use /broadcast command and watch real-time progress updates
+
+# Check user database
+docker exec mydramalist-bot python3 -c "
+from infra.db import mongo_client
+import asyncio
+async def check():
+    await mongo_client.start()
+    count = await mongo_client.db.users.count_documents({})
+    print(f'Total users: {count}')
+asyncio.run(check())
+"
+
+# Test with small broadcast first
+# Use /broadcast test message to verify functionality
+```
+
 #### **Performance Issues**
 ```bash
 # Check cache hit ratio (should be >80%)
 docker exec mydramalist-redis redis-cli info stats | grep keyspace_hits
 
-# Monitor resource usage
+# Monitor resource usage during broadcast
 docker stats mydramalist-bot mydramalist-redis
 
 # Check for memory leaks
@@ -571,6 +692,10 @@ This project is licensed under the **MIT License**. See the [LICENSE](./LICENSE)
 ## 🚀 **Version History**
 
 ### **v2.1** (Latest) ✨
+- **Enhanced Broadcast System** - Mass broadcasting to millions of users with all message types
+- **Real-Time Progress Tracking** - Live broadcast monitoring with speed and success metrics
+- **Universal Message Support** - Photos, videos, documents, stickers, locations, contacts, and more
+- **Full HTML Support** - Rich text formatting in broadcast messages
 - Code optimization and cleanup (removed unused code/imports)
 - Improved log management with smart file detection  
 - Better error handling and fallback mechanisms
