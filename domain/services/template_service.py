@@ -33,39 +33,75 @@ class TemplateService:
                 return value[0]
             return default if value == "N/A" else value
         
-        # Extract data safely
-        details = drama_data.get("details", {})
-        others = drama_data.get("others", {})
+        # Handle both old and new data structure
+        if "data" in drama_data:
+            # New API structure
+            data = drama_data["data"]
+            details = data.get("details", {})
+            others = data.get("others", {})
+            main_data = data
+        else:
+            # Old API structure (fallback)
+            details = drama_data.get("details", {})
+            others = drama_data.get("others", {})
+            main_data = drama_data
         
-        title = get_field(drama_data, "title")
-        complete_title = get_field(drama_data, "complete_title")
-        drama_link = get_field(drama_data, "link", f"https://mydramalist.com/{slug}")
+        title = get_field(main_data, "title")
+        complete_title = get_field(main_data, "complete_title") 
+        drama_link = get_field(main_data, "link", f"https://mydramalist.com/{slug}")
         
-        native_title = get_nested_field(others, "native_title")
-        also_known_as = ", ".join(others.get("also_known_as", [])) or "N/A"
-        synopsis = html.escape(get_field(drama_data, "synopsis"))
-        if len(synopsis) > 200:
-            synopsis = synopsis[:200] + "..."
+        # Handle native title (can be string or list)
+        native_title_raw = others.get("native_title", [])
+        if isinstance(native_title_raw, list) and native_title_raw:
+            native_title = native_title_raw[0]
+        elif isinstance(native_title_raw, str):
+            native_title = native_title_raw
+        else:
+            native_title = "N/A"
+        
+        # Handle also known as (list to string)
+        also_known_as_list = others.get("also_known_as", [])
+        also_known_as = ", ".join(also_known_as_list) if also_known_as_list else "N/A"
+        
+        # Handle synopsis
+        synopsis_raw = get_field(main_data, "synopsis")
+        if synopsis_raw and synopsis_raw != "N/A":
+            synopsis = html.escape(synopsis_raw)
+            if len(synopsis) > 300:
+                synopsis = synopsis[:300] + "..."
+        else:
+            synopsis = "N/A"
         
         # Process genres with emojis
         genres_list = others.get("genres", [])
-        genres_str = ", ".join(
-            f"{self.GENRE_EMOJI.get(g, '')} #{g}".replace("-", "_") 
-            for g in genres_list
-        )
+        if genres_list:
+            genres_str = ", ".join(
+                f"{self.GENRE_EMOJI.get(g, '')} #{g}".replace("-", "_") 
+                for g in genres_list
+            ).strip()
+        else:
+            genres_str = "N/A"
         
         # Process tags
         tags_list = others.get("tags", [])
-        if tags_list and tags_list[-1].endswith("(Vote or add tags)"):
-            tags_list[-1] = tags_list[-1].replace("(Vote or add tags)", "").strip()
-        tags_str = ", ".join(tags_list)
+        if tags_list:
+            # Clean up tags - remove vote prompts
+            cleaned_tags = []
+            for tag in tags_list:
+                if isinstance(tag, str):
+                    tag = tag.replace("(Vote tags)", "").replace("(Vote or add tags)", "").strip()
+                    if tag:  # Only add non-empty tags
+                        cleaned_tags.append(tag)
+            tags_str = ", ".join(cleaned_tags) if cleaned_tags else "N/A"
+        else:
+            tags_str = "N/A"
         
         # Build placeholders
         placeholders = {
             "title": title,
             "complete_title": complete_title,
             "link": drama_link,
-            "rating": get_field(drama_data, "rating"),
+            "rating": str(get_field(main_data, "rating")),
             "synopsis": synopsis,
             "country": get_field(details, "country"),
             "type": get_field(details, "type"),
@@ -84,6 +120,9 @@ class TemplateService:
             "tags": tags_str,
             "native_title": native_title,
             "also_known_as": also_known_as,
+            "year": get_field(main_data, "year", "N/A"),
+            "release_date": get_field(details, "release_date", get_field(details, "aired", "N/A")),
+            "poster": get_field(main_data, "poster", ""),
         }
         
         # Apply user template or default
@@ -156,25 +195,87 @@ class TemplateService:
             return f"Template error: {e}"
     
     def _build_default_mdl_caption(self, p: Dict[str, str]) -> str:
-        """Build default MyDramaList caption."""
-        return (
-            f"<b>{p['title']}</b>\n"
-            f"<i>{p['complete_title']}</i>\n"
-            f"<b>Native Title:</b> {p['native_title']}\n"
-            f"<b>Also Known As:</b> {p['also_known_as']}\n"
-            f"<b>Rating ⭐️:</b> {p['rating']}\n"
-            f"<b>Country:</b> {p['country']}\n"
-            f"<b>Episodes:</b> {p['episodes']}\n"
-            f"<b>Aired Date:</b> {p['aired']}\n"
-            f"<b>Aired On:</b> {p['aired_on']}\n"
-            f"<b>Original Network:</b> {p['original_network']}\n"
-            f"<b>Duration:</b> {p['duration']}\n"
-            f"<b>Content Rating:</b> {p['content_rating']}\n"
-            f"<b>Genres:</b> {p['genres']}\n"
-            f"<b>Tags:</b> {p['tags']}\n"
-            f"<b>Storyline:</b> {p['synopsis']}...\n"
-            f"<a href='{p['link']}'>See more...</a>"
-        )
+        """Build default MyDramaList caption with dynamic formatting for movies vs dramas."""
+        content_type = p.get('type', 'Drama').lower()
+        
+        # Start with title
+        caption_parts = [f"<b>{p['title']}</b>"]
+        
+        # Add native title if available
+        if p['native_title'] and p['native_title'] != "N/A":
+            caption_parts.append(f"<b>Native Title:</b> {p['native_title']}")
+        
+        # Add Also Known As if available and not too long
+        if p['also_known_as'] and p['also_known_as'] != "N/A":
+            also_known = p['also_known_as']
+            if len(also_known) > 150:  # Truncate if too long
+                also_known = also_known[:150] + "..."
+            caption_parts.append(f"<b>Also Known As:</b> {also_known}")
+        
+        # Rating with star emoji
+        if p['rating'] and p['rating'] != "N/A":
+            caption_parts.append(f"<b>Rating ⭐️:</b> {p['rating']}")
+        
+        # Country
+        if p['country'] and p['country'] != "N/A":
+            caption_parts.append(f"<b>Country:</b> {p['country']}")
+        
+        # Dynamic content based on type
+        if content_type == 'movie':
+            # Movie-specific fields
+            if p.get('release_date') and p['release_date'] != "N/A":
+                caption_parts.append(f"<b>Release Date:</b> {p['release_date']}")
+            elif p['aired'] and p['aired'] != "N/A":
+                caption_parts.append(f"<b>Release Date:</b> {p['aired']}")
+        else:
+            # Drama/Series-specific fields
+            if p['episodes'] and p['episodes'] != "N/A":
+                caption_parts.append(f"<b>Episodes:</b> {p['episodes']}")
+            
+            if p['aired'] and p['aired'] != "N/A":
+                caption_parts.append(f"<b>Aired Date:</b> {p['aired']}")
+            
+            if p['aired_on'] and p['aired_on'] != "N/A":
+                caption_parts.append(f"<b>Aired On:</b> {p['aired_on']}")
+            
+            if p['original_network'] and p['original_network'] != "N/A":
+                caption_parts.append(f"<b>Original Network:</b> {p['original_network']}")
+        
+        # Duration (common for both)
+        if p['duration'] and p['duration'] != "N/A":
+            caption_parts.append(f"<b>Duration:</b> {p['duration']}")
+        
+        # Content rating (common for both)
+        if p['content_rating'] and p['content_rating'] != "N/A" and p['content_rating'] != "Not Yet Rated":
+            caption_parts.append(f"<b>Content Rating:</b> {p['content_rating']}")
+        
+        # Genres with emojis (common for both)
+        if p['genres'] and p['genres'] != "N/A":
+            caption_parts.append(f"<b>Genres:</b> {p['genres']}")
+        
+        # Tags (limit for readability)
+        if p['tags'] and p['tags'] != "N/A" and len(p['tags'].strip()) > 0:
+            tags_list = [tag.strip() for tag in p['tags'].split(", ") if tag.strip()]
+            # Limit to 8 tags to avoid message being too long
+            display_tags = tags_list[:8]
+            tags_text = ", ".join(display_tags)
+            if len(tags_list) > 8:
+                tags_text += " (Vote tags)"
+            caption_parts.append(f"<b>Tags:</b> {tags_text}")
+        
+        # Synopsis/Storyline (common for both)
+        if p['synopsis'] and p['synopsis'] != "N/A":
+            synopsis = p['synopsis'].strip()
+            # Dynamic truncation based on content type
+            max_length = 250 if content_type == 'movie' else 300
+            if len(synopsis) > max_length:
+                synopsis = synopsis[:max_length] + "..."
+            caption_parts.append(f"<b>Storyline:</b> {synopsis}")
+        
+        # Link
+        caption_parts.append(f"<a href='{p['link']}'>See more... ({p['link']})</a>")
+        
+        return "\n".join(caption_parts)
     
     def _build_default_imdb_caption(self, p: Dict[str, str]) -> str:
         """Build default IMDB caption."""
