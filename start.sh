@@ -309,9 +309,11 @@ check_performance_features() {
 start_bot() {
     log_step "Starting $BOT_NAME"
     
-    # Activate virtual environment
-    # shellcheck source=/dev/null
-    source "$VENV_DIR/bin/activate"
+    # Activate virtual environment (skip in Docker)
+    if [ "$IN_DOCKER" != "true" ]; then
+        # shellcheck source=/dev/null
+        source "$VENV_DIR/bin/activate"
+    fi
     
     # Change to script directory
     cd "$SCRIPT_DIR"
