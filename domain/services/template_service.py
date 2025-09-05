@@ -271,9 +271,7 @@ class TemplateService:
             if len(synopsis) > max_length:
                 synopsis = synopsis[:max_length] + "..."
             caption_parts.append(f"<b>Storyline:</b> {synopsis}")
-        
-        # Link
-        caption_parts.append(f"<a href='{p['link']}'>See more... ({p['link']})</a>")
+        caption_parts.append(f"<a href='{p['link']}'>See more...</a>")
         
         return "\n".join(caption_parts)
     
