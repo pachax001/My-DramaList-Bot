@@ -372,54 +372,306 @@ async def cache_reload_command(client: Client, message: Message):
 
 
 async def manual_broadcast_command(client: Client, message: Message):
-    """Broadcast message to all users."""
+    """Enhanced broadcast supporting all message types with batch processing for millions of users."""
     if message.from_user.id != settings.owner_id:
         await message.reply_text("❌ Only bot owner can broadcast messages.")
         return
     
     # Get broadcast content
+    broadcast_content = {}
+    
     if message.reply_to_message:
-        broadcast_content = {
-            'media_type': 'text',
-            'text': message.reply_to_message.text or message.reply_to_message.caption or "No content",
-        }
+        replied_msg = message.reply_to_message
+        
+        # Handle different message types
+        if replied_msg.photo:
+            broadcast_content = {
+                'type': 'photo',
+                'media': replied_msg.photo.file_id,
+                'caption': replied_msg.caption or "",
+                'parse_mode': ParseMode.HTML
+            }
+        elif replied_msg.video:
+            broadcast_content = {
+                'type': 'video',
+                'media': replied_msg.video.file_id,
+                'caption': replied_msg.caption or "",
+                'parse_mode': ParseMode.HTML
+            }
+        elif replied_msg.animation:
+            broadcast_content = {
+                'type': 'animation',
+                'media': replied_msg.animation.file_id,
+                'caption': replied_msg.caption or "",
+                'parse_mode': ParseMode.HTML
+            }
+        elif replied_msg.document:
+            broadcast_content = {
+                'type': 'document',
+                'media': replied_msg.document.file_id,
+                'caption': replied_msg.caption or "",
+                'parse_mode': ParseMode.HTML
+            }
+        elif replied_msg.audio:
+            broadcast_content = {
+                'type': 'audio',
+                'media': replied_msg.audio.file_id,
+                'caption': replied_msg.caption or "",
+                'parse_mode': ParseMode.HTML
+            }
+        elif replied_msg.voice:
+            broadcast_content = {
+                'type': 'voice',
+                'media': replied_msg.voice.file_id,
+                'caption': replied_msg.caption or "",
+                'parse_mode': ParseMode.HTML
+            }
+        elif replied_msg.video_note:
+            broadcast_content = {
+                'type': 'video_note',
+                'media': replied_msg.video_note.file_id,
+            }
+        elif replied_msg.sticker:
+            broadcast_content = {
+                'type': 'sticker',
+                'media': replied_msg.sticker.file_id,
+            }
+        elif replied_msg.location:
+            broadcast_content = {
+                'type': 'location',
+                'latitude': replied_msg.location.latitude,
+                'longitude': replied_msg.location.longitude,
+            }
+        elif replied_msg.contact:
+            broadcast_content = {
+                'type': 'contact',
+                'phone_number': replied_msg.contact.phone_number,
+                'first_name': replied_msg.contact.first_name,
+                'last_name': replied_msg.contact.last_name,
+            }
+        elif replied_msg.poll:
+            await message.reply_text("❌ Polls cannot be broadcasted (Telegram limitation).")
+            return
+        else:
+            # Text message
+            broadcast_content = {
+                'type': 'text',
+                'text': replied_msg.text or replied_msg.caption or "No content",
+                'parse_mode': ParseMode.HTML
+            }
     else:
+        # Text from command
         parts = message.text.split(' ', 1)
         if len(parts) < 2:
-            await message.reply_text("Usage: /broadcast <message> or reply to a message")
+            await message.reply_text(
+                "📢 **Broadcast Usage:**\n\n"
+                "**Method 1:** `/broadcast <message>` (supports HTML)\n"
+                "**Method 2:** Reply to any message with `/broadcast`\n\n"
+                "**Supported Types:**\n"
+                "• 📝 Text (with HTML formatting)\n"
+                "• 🖼️ Photos with captions\n" 
+                "• 🎥 Videos with captions\n"
+                "• 🎬 GIFs/Animations with captions\n"
+                "• 📄 Documents with captions\n"
+                "• 🎵 Audio with captions\n"
+                "• 🎙️ Voice messages\n"
+                "• 📹 Video notes\n"
+                "• 🎭 Stickers\n"
+                "• 📍 Locations\n"
+                "• 👤 Contacts\n\n"
+                "**HTML Tags Supported:**\n"
+                "`<b>bold</b>, <i>italic</i>, <u>underline</u>, <s>strikethrough</s>, <code>code</code>, <pre>preformatted</pre>, <a href='url'>link</a>`",
+                parse_mode=ParseMode.HTML
+            )
             return
         
         broadcast_content = {
-            'media_type': 'text', 
-            'text': parts[1]
+            'type': 'text', 
+            'text': parts[1],
+            'parse_mode': ParseMode.HTML
         }
     
     try:
-        # Get all users
-        users = []
-        async for user in mongo_client.db.users.find():
-            users.append(user['user_id'])
+        # Get total user count first for progress tracking
+        total_users = await mongo_client.db.users.count_documents({})
         
-        if not users:
+        if total_users == 0:
             await message.reply_text("❌ No users to broadcast to.")
             return
         
-        # Start broadcast
-        broadcast_msg = await message.reply_text(f"📢 Starting broadcast to {len(users)} users...")
+        # Start broadcast with progress tracking
+        broadcast_msg = await message.reply_text(
+            f"📢 **Starting Broadcast**\n"
+            f"👥 Total Users: {total_users:,}\n"
+            f"📊 Progress: 0%\n"
+            f"📤 Sent: 0\n"
+            f"❌ Failed: 0\n"
+            f"⏱️ Speed: 0 msgs/sec",
+            parse_mode=ParseMode.HTML
+        )
         
-        # Simple broadcast (replace with proper broadcast logic from old code)
+        # Batch processing for efficiency
+        import asyncio
+        import time
+        from datetime import datetime
+        
+        start_time = time.time()
         sent = 0
         failed = 0
+        batch_size = 30  # Telegram rate limit friendly
+        update_interval = 100  # Update progress every 100 messages
         
-        for user_id in users:
+        # Process users in batches using cursor for memory efficiency
+        cursor = mongo_client.db.users.find({}, {"user_id": 1})
+        user_batch = []
+        
+        async def send_to_user(user_id: int) -> bool:
+            """Send message to individual user."""
             try:
-                await client.send_message(user_id, broadcast_content['text'])
-                sent += 1
-            except Exception:
-                failed += 1
+                if broadcast_content['type'] == 'text':
+                    await client.send_message(
+                        user_id, 
+                        broadcast_content['text'], 
+                        parse_mode=broadcast_content['parse_mode']
+                    )
+                elif broadcast_content['type'] == 'photo':
+                    await client.send_photo(
+                        user_id, 
+                        broadcast_content['media'],
+                        caption=broadcast_content['caption'],
+                        parse_mode=broadcast_content['parse_mode']
+                    )
+                elif broadcast_content['type'] == 'video':
+                    await client.send_video(
+                        user_id, 
+                        broadcast_content['media'],
+                        caption=broadcast_content['caption'],
+                        parse_mode=broadcast_content['parse_mode']
+                    )
+                elif broadcast_content['type'] == 'animation':
+                    await client.send_animation(
+                        user_id, 
+                        broadcast_content['media'],
+                        caption=broadcast_content['caption'],
+                        parse_mode=broadcast_content['parse_mode']
+                    )
+                elif broadcast_content['type'] == 'document':
+                    await client.send_document(
+                        user_id, 
+                        broadcast_content['media'],
+                        caption=broadcast_content['caption'],
+                        parse_mode=broadcast_content['parse_mode']
+                    )
+                elif broadcast_content['type'] == 'audio':
+                    await client.send_audio(
+                        user_id, 
+                        broadcast_content['media'],
+                        caption=broadcast_content['caption'],
+                        parse_mode=broadcast_content['parse_mode']
+                    )
+                elif broadcast_content['type'] == 'voice':
+                    await client.send_voice(
+                        user_id, 
+                        broadcast_content['media']
+                    )
+                elif broadcast_content['type'] == 'video_note':
+                    await client.send_video_note(
+                        user_id, 
+                        broadcast_content['media']
+                    )
+                elif broadcast_content['type'] == 'sticker':
+                    await client.send_sticker(
+                        user_id, 
+                        broadcast_content['media']
+                    )
+                elif broadcast_content['type'] == 'location':
+                    await client.send_location(
+                        user_id, 
+                        broadcast_content['latitude'],
+                        broadcast_content['longitude']
+                    )
+                elif broadcast_content['type'] == 'contact':
+                    await client.send_contact(
+                        user_id, 
+                        broadcast_content['phone_number'],
+                        broadcast_content['first_name'],
+                        broadcast_content.get('last_name', '')
+                    )
+                
+                return True
+            except Exception as e:
+                logger.debug(f"Failed to send to user {user_id}: {e}")
+                return False
         
-        await broadcast_msg.edit_text(f"✅ Broadcast completed!\n📤 Sent: {sent}\n❌ Failed: {failed}")
+        async for user_doc in cursor:
+            user_batch.append(user_doc['user_id'])
+            
+            # Process batch when it reaches batch_size
+            if len(user_batch) >= batch_size:
+                # Send to batch concurrently with rate limiting
+                tasks = [send_to_user(uid) for uid in user_batch]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Count results
+                for result in results:
+                    if result is True:
+                        sent += 1
+                    else:
+                        failed += 1
+                
+                user_batch = []
+                
+                # Update progress periodically
+                if (sent + failed) % update_interval == 0 or (sent + failed) == total_users:
+                    elapsed = time.time() - start_time
+                    speed = (sent + failed) / elapsed if elapsed > 0 else 0
+                    progress = ((sent + failed) / total_users) * 100
+                    
+                    try:
+                        await broadcast_msg.edit_text(
+                            f"📢 **Broadcasting...**\n"
+                            f"👥 Total Users: {total_users:,}\n"
+                            f"📊 Progress: {progress:.1f}%\n"
+                            f"📤 Sent: {sent:,}\n"
+                            f"❌ Failed: {failed:,}\n"
+                            f"⏱️ Speed: {speed:.1f} msgs/sec\n"
+                            f"⏰ Elapsed: {elapsed:.0f}s",
+                            parse_mode=ParseMode.HTML
+                        )
+                    except Exception:
+                        pass  # Don't fail broadcast if progress update fails
+                
+                # Rate limiting delay
+                await asyncio.sleep(1)  # 1 second between batches
+        
+        # Process remaining users in the last batch
+        if user_batch:
+            tasks = [send_to_user(uid) for uid in user_batch]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for result in results:
+                if result is True:
+                    sent += 1
+                else:
+                    failed += 1
+        
+        # Final summary
+        total_time = time.time() - start_time
+        success_rate = (sent / total_users) * 100 if total_users > 0 else 0
+        
+        final_message = (
+            f"✅ **Broadcast Completed!**\n"
+            f"👥 Total Users: {total_users:,}\n"
+            f"📤 Successfully Sent: {sent:,}\n"
+            f"❌ Failed: {failed:,}\n"
+            f"📊 Success Rate: {success_rate:.1f}%\n"
+            f"⏰ Total Time: {total_time:.0f}s\n"
+            f"⚡ Average Speed: {total_users/total_time:.1f} msgs/sec"
+        )
+        
+        await broadcast_msg.edit_text(final_message, parse_mode=ParseMode.HTML)
+        logger.info(f"Broadcast completed: {sent} sent, {failed} failed out of {total_users} users")
         
     except Exception as e:
         logger.error(f"Error in broadcast: {e}")
-        await message.reply_text("❌ Broadcast failed.")
+        await message.reply_text("❌ Broadcast failed due to an error.")
