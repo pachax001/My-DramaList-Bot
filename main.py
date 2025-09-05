@@ -4,10 +4,8 @@ import asyncio
 import os
 import signal
 import sys
-from typing import NoReturn
-from contextlib import asynccontextmanager
 from pyrogram import Client
-from pyrogram.types import BotCommand, BotCommandScopeChat
+from pyrogram.types import BotCommand
 from pyrogram.enums import ParseMode
 
 # Enable uvloop on POSIX systems for better performance
@@ -35,7 +33,7 @@ from app.commands import BotCommandManager
 from adapters.telegram.handlers.auth_handlers import authorize_cmd, unauthorize_cmd, list_users_cmd
 from adapters.telegram.handlers.basic_handlers import start_command, send_log, help_command, user_stats_command, set_public_mode_command, manual_broadcast_command, cache_reload_command
 from adapters.telegram.handlers.search_handlers import (search_dramas_command, drama_details_callback, close_search_results,
-    search_imdb, imdb_pagination_callback, imdb_details_callback, handle_drama_url, handle_imdb_url,
+    search_imdb, imdb_details_callback, handle_drama_url, handle_imdb_url,
     handle_inline_query, handle_chosen_inline_result)
 from adapters.telegram.handlers.template_handlers import (set_template_command, get_template_command, remove_template_command, preview_template_command,
     set_imdb_template_command, get_imdb_template_command, remove_imdb_template_command, preview_imdb_template_command,
@@ -134,7 +132,6 @@ class HighPerformanceBot:
         # Callback handlers
         self.app.add_handler(CallbackQueryHandler(monitored_drama_details, filters.regex("^details")))
         self.app.add_handler(CallbackQueryHandler(monitored_imdb_details, filters.regex("^imdbdetails")))
-        self.app.add_handler(CallbackQueryHandler(imdb_pagination_callback, filters.regex("^imdb:")))
         self.app.add_handler(CallbackQueryHandler(close_search_results, filters.regex("^close_search")))
         
         # Template handlers

@@ -11,9 +11,8 @@ import sys
 import shutil
 import subprocess
 import tempfile
-import json
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional
 import argparse
 import logging
 

@@ -17,7 +17,7 @@ from infra.ratelimit import user_limiter
 logger = get_logger(__name__)
 
 
-def extract_url_from_text(text: str) -> tuple[str, str]:
+def extract_url_from_text(text: str) -> tuple[None, None] | tuple[str, str]:
     """Extract URL from text and determine its type (mdl/imdb)."""
     if not text:
         return None, None
@@ -643,17 +643,76 @@ async def handle_imdb_url(client: Client, message: Message) -> None:
         await processing_msg.edit_text("❌ Failed to process URL. Please try again later.")
 
 
-async def imdb_pagination_callback(client: Client, callback_query: CallbackQuery) -> None:
-    """Handle IMDB pagination."""
-    await callback_query.answer("🚧 Pagination coming soon!")
 
 
-# Inline handlers (placeholders)
 async def handle_inline_query(client: Client, inline_query) -> None:
-    """Handle inline queries."""
-    pass
+    """Handle inline queries for MyDramaList search."""
+    from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent
+    
+    query = inline_query.query.strip()
+    if not query or len(query) < 2:
+        await inline_query.answer([], cache_time=1)
+        return
+    
+    user_id = inline_query.from_user.id
+    
+    # Apply rate limiting
+    if not await user_limiter.is_allowed(f"inline_user:{user_id}", limit=5, window=60):
+        await inline_query.answer([], cache_time=1)
+        return
+    
+    # Check authorization for inline queries
+    public_setting = await mongo_client.db.settings.find_one({"key": "public_mode"})
+    is_public = public_setting.get("value", True) if public_setting else True
+    
+    if not is_public:
+        auth_user = await mongo_client.db.authorized_users.find_one({"user_id": user_id})
+        if not auth_user:
+            await inline_query.answer([], cache_time=1)
+            return
+    
+    try:
+        # Search dramas
+        results = []
+        dramas = await mydramalist_adapter.search_dramas(query)
+        
+        for drama in dramas[:15]:  # Limit to 15 results for inline
+            title = drama.get("title", "Unknown")
+            year = drama.get("year", "")
+            slug = drama.get("slug", "")
+            
+            display_title = f"{title} ({year})" if year else title
+            description = f"MyDramaList: {title}"
+            
+            # Create inline result
+            results.append(
+                InlineQueryResultArticle(
+                    id=f"mdl_{slug}_{uuid.uuid4().hex[:8]}",
+                    title=display_title,
+                    description=description,
+                    input_message_content=InputTextMessageContent(
+                        message_text=f"/mdl {title}",
+                        parse_mode=ParseMode.HTML
+                    ),
+                    thumb_url="https://mydramalist.com/favicon.ico"
+                )
+            )
+        
+        await inline_query.answer(results, cache_time=300)
+        
+    except Exception as e:
+        logger.error(f"Error in inline query: {e}")
+        await inline_query.answer([], cache_time=1)
 
 
 async def handle_chosen_inline_result(client: Client, chosen_inline_result) -> None:
-    """Handle chosen inline results."""
-    pass
+    """Handle chosen inline results for analytics."""
+    try:
+        result_id = chosen_inline_result.result_id
+        user_id = chosen_inline_result.from_user.id
+        
+        # Log usage for analytics
+        logger.info(f"User {user_id} selected inline result: {result_id}")
+        
+    except Exception as e:
+        logger.error(f"Error in chosen inline result: {e}")
