@@ -5,6 +5,7 @@ import sys
 import asyncio
 import subprocess
 import json
+import re
 from datetime import datetime
 from pyrogram import Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
@@ -918,3 +919,196 @@ async def check_restart_status():
             os.remove(restart_file)
         except:
             pass
+
+
+async def shell_command(client: Client, message: Message):
+    """Execute shell commands via bot (Owner only)."""
+    if message.from_user.id != settings.owner_id:
+        await message.reply_text("❌ Only bot owner can execute shell commands.")
+        return
+    
+    try:
+        # Extract command from message
+        command_parts = message.text.split(' ', 1)
+        if len(command_parts) < 2:
+            await message.reply_text(
+                "🐚 **Shell Command Usage:**\n\n"
+                "**Syntax:** `/shell <command>`\n\n"
+                "**Examples:**\n"
+                "• `/shell pip install requests`\n"
+                "• `/shell ls -la`\n"
+                "• `/shell git status`\n"
+                "• `/shell python --version`\n"
+                "• `/shell df -h`\n\n"
+                "⚠️ **Security Warning:**\n"
+                "This command has full system access. Use with extreme caution!\n\n"
+                "**Safe Commands:**\n"
+                "• Package management: `pip install/uninstall`\n"
+                "• File operations: `ls`, `cat`, `head`, `tail`\n"
+                "• System info: `ps`, `df`, `free`, `uname`\n"
+                "• Git operations: `git status`, `git log`\n\n"
+                "**Dangerous Commands:**\n"
+                "❌ Avoid: `rm -rf`, `chmod 777`, `sudo su`, etc.",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        command = command_parts[1].strip()
+        
+        # Security warning for dangerous commands
+        dangerous_patterns = [
+            r'\brm\s+-rf\b', r'\brm\s+.*\*', r'\bchmod\s+777\b', 
+            r'\bsudo\s+su\b', r'\bmkfs\b', r'\bformat\b',
+            r'\bdd\s+if=', r'\bfdisk\b', r'\bcrontab\s+-r\b',
+            r'>\s*/dev/', r'\bkill\s+-9.*1\b'
+        ]
+        
+        is_dangerous = any(re.search(pattern, command, re.IGNORECASE) for pattern in dangerous_patterns)
+        
+        if is_dangerous:
+            await message.reply_text(
+                f"⚠️ **Potentially Dangerous Command Detected**\n\n"
+                f"**Command:** `{command}`\n\n"
+                f"This command appears to be potentially destructive. "
+                f"Please review carefully before execution.\n\n"
+                f"Reply with `EXECUTE ANYWAY` to proceed or cancel this operation.",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        # Send initial status message
+        status_msg = await message.reply_text(
+            f"🐚 **Executing Shell Command**\n\n"
+            f"**Command:** `{command}`\n"
+            f"**Status:** Running...\n\n"
+            f"⏳ Please wait for output...",
+            parse_mode=ParseMode.HTML
+        )
+        
+        logger.info(f"Shell command initiated by owner: {command}")
+        start_time = datetime.now()
+        
+        # Execute command with timeout
+        try:
+            # Use subprocess for better control and security
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=os.getcwd(),
+                env=os.environ.copy()
+            )
+            
+            # Wait for completion with timeout (max 5 minutes)
+            try:
+                stdout, stderr = process.communicate(timeout=300)
+                return_code = process.returncode
+                execution_time = (datetime.now() - start_time).total_seconds()
+                
+            except subprocess.TimeoutExpired:
+                process.kill()
+                stdout, stderr = process.communicate()
+                return_code = -1
+                execution_time = 300
+                stderr += "\n⚠️ Command timed out after 5 minutes"
+            
+        except Exception as e:
+            await status_msg.edit_text(
+                f"🐚 **Shell Command Failed**\n\n"
+                f"**Command:** `{command}`\n"
+                f"**Error:** {str(e)}\n\n"
+                f"❌ Execution failed before completion",
+                parse_mode=ParseMode.HTML
+            )
+            logger.error(f"Shell command execution failed: {e}")
+            return
+        
+        # Prepare output message
+        execution_status = "✅ Success" if return_code == 0 else f"❌ Failed (Exit Code: {return_code})"
+        
+        # Combine stdout and stderr
+        output_parts = []
+        if stdout.strip():
+            output_parts.append(f"**📤 STDOUT:**\n```\n{stdout.strip()}\n```")
+        if stderr.strip():
+            output_parts.append(f"**📥 STDERR:**\n```\n{stderr.strip()}\n```")
+        
+        if not output_parts:
+            output_text = "*(No output generated)*"
+        else:
+            output_text = "\n\n".join(output_parts)
+        
+        # Create result message
+        result_message = f"""🐚 **Shell Command Executed**
+
+**Command:** `{command}`
+**Status:** {execution_status}
+**Execution Time:** {execution_time:.2f}s
+**Return Code:** {return_code}
+
+{output_text}"""
+        
+        # Handle long outputs
+        if len(result_message) > 4096:  # Telegram message limit
+            # Send basic info first
+            basic_info = f"""🐚 **Shell Command Executed**
+
+**Command:** `{command}`
+**Status:** {execution_status}
+**Execution Time:** {execution_time:.2f}s
+**Return Code:** {return_code}
+
+⚠️ **Output too long - sending as file...**"""
+            
+            await status_msg.edit_text(basic_info, parse_mode=ParseMode.HTML)
+            
+            # Create output file
+            output_filename = f"shell_output_{int(start_time.timestamp())}.txt"
+            full_output = f"Shell Command: {command}\n"
+            full_output += f"Executed at: {start_time.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+            full_output += f"Return Code: {return_code}\n"
+            full_output += f"Execution Time: {execution_time:.2f}s\n"
+            full_output += "=" * 50 + "\n\n"
+            
+            if stdout.strip():
+                full_output += "STDOUT:\n" + stdout + "\n\n"
+            if stderr.strip():
+                full_output += "STDERR:\n" + stderr + "\n"
+            
+            # Write to temp file and send
+            with open(output_filename, 'w', encoding='utf-8') as f:
+                f.write(full_output)
+            
+            await message.reply_document(
+                output_filename,
+                caption=f"📄 Shell command output\n**Command:** `{command}`",
+                parse_mode=ParseMode.HTML
+            )
+            
+            # Clean up temp file
+            os.remove(output_filename)
+        else:
+            # Send normal message
+            await status_msg.edit_text(result_message, parse_mode=ParseMode.HTML)
+        
+        logger.info(f"Shell command completed: {command} (exit code: {return_code}, time: {execution_time:.2f}s)")
+        
+    except Exception as e:
+        logger.error(f"Error in shell command: {e}")
+        try:
+            await status_msg.edit_text(
+                f"🐚 **Shell Command Error**\n\n"
+                f"**Command:** `{command if 'command' in locals() else 'Unknown'}`\n"
+                f"**Error:** {str(e)}\n\n"
+                f"❌ Unexpected error occurred",
+                parse_mode=ParseMode.HTML
+            )
+        except:
+            await message.reply_text(
+                f"🐚 **Shell Command Error**\n\n"
+                f"**Error:** {str(e)}\n\n"
+                f"❌ Failed to execute shell command",
+                parse_mode=ParseMode.HTML
+            )

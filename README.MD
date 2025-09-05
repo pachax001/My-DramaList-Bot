@@ -16,6 +16,7 @@
 - 📱 **Universal Message Support** - Broadcast photos, videos, documents, stickers, locations, and more
 - 🎨 **Full HTML Support** - Rich text formatting in broadcast messages with HTML tags
 - 🔄 **Auto-Restart System** - Force pull from GitHub and restart bot with real-time status updates
+- 🐚 **Shell Command System** - Execute system commands via bot for package management and maintenance
 - 🧹 **Code Optimization** - Removed unused code, optimized imports, and improved performance
 - 🛠️ **Better Log Management** - Improved `/log` command with automatic log file detection
 - 💾 **Advanced Redis Caching** - 2GB memory limit with intelligent TTL management  
@@ -59,6 +60,7 @@
 - `/health` - Check service health status (Redis, MongoDB, etc.)
 - `/cachereload` - Clear all caches and restart cache client
 - `/restart` - 🔄 **New** Force pull from GitHub and restart bot (see detailed guide below)
+- `/shell` - 🐚 **New** Execute system shell commands (see detailed guide below)
 
 ---
 
@@ -248,6 +250,235 @@ Restart initiated by @YourUsername
 - **Environment Variables**: .env changes need container restart
 - **Git Repository**: Must be properly configured with GitHub repository
 - **Permissions**: Bot must have git access to the repository
+
+---
+
+## 🐚 **Shell Command System** ✨
+
+### **🚀 Remote System Administration**
+The bot includes a powerful shell command system that allows remote execution of system commands via Telegram:
+
+- **✅ Owner-Only Access**: Restricted to bot owner for maximum security
+- **✅ Dangerous Command Detection**: Automatically identifies and blocks potentially destructive commands
+- **✅ Real-Time Output**: Live command execution with progress updates
+- **✅ Complete Logging**: Full STDOUT/STDERR capture with execution details
+- **✅ Timeout Protection**: 5-minute timeout prevents hanging commands
+- **✅ File Output**: Long outputs automatically sent as downloadable files
+
+### **🎯 Perfect for Your Use Case**
+
+**Scenario**: After bot update, new package needed but restart causes crash
+**Solution**: Install packages via shell, then safely restart
+```bash
+/shell pip install new-package-name
+/shell pip list
+/restart  # Now safe to restart
+```
+
+### **🔧 Command Usage**
+
+#### **Basic Syntax**
+```
+/shell <command>
+```
+
+#### **Common Examples**
+```bash
+# Package Management
+/shell pip install requests
+/shell pip install --upgrade pyrogram
+/shell pip list
+/shell pip show pyrogram
+
+# System Information  
+/shell python --version
+/shell df -h
+/shell free -m
+/shell ps aux | head -10
+
+# File Operations
+/shell ls -la
+/shell cat config.env
+/shell tail -n 20 logs/bot.log
+
+# Git Operations
+/shell git status
+/shell git log --oneline -5
+/shell git branch -a
+```
+
+### **🛡️ Security Features**
+
+#### **Dangerous Command Detection**
+The system automatically blocks potentially destructive commands:
+
+| ❌ **Blocked Commands** | 📝 **Description** |
+|------------------------|-------------------|
+| `rm -rf` | Recursive file deletion |
+| `chmod 777` | Permission changes |
+| `sudo su` | Privilege escalation |
+| `mkfs`, `format` | Disk formatting |
+| `dd if=` | Disk operations |
+| `kill -9 1` | System process termination |
+| `> /dev/` | Device file operations |
+
+#### **Safety Warning Example**
+```
+/shell rm -rf /important-folder
+
+⚠️ Potentially Dangerous Command Detected
+
+Command: rm -rf /important-folder
+
+This command appears to be potentially destructive.
+Please review carefully before execution.
+
+Reply with EXECUTE ANYWAY to proceed or cancel this operation.
+```
+
+### **📊 Command Execution Flow**
+
+#### **Step 1: Command Initiation**
+```
+/shell pip install requests
+```
+🐚 **Executing Shell Command**
+**Command:** `pip install requests`
+**Status:** Running...
+⏳ Please wait for output...
+
+#### **Step 2: Success Response**
+```
+🐚 Shell Command Executed
+
+Command: pip install requests
+Status: ✅ Success  
+Execution Time: 3.45s
+Return Code: 0
+
+📤 STDOUT:
+Successfully installed requests-2.31.0
+```
+
+#### **Step 3: Error Response (if applicable)**
+```
+🐚 Shell Command Executed
+
+Command: pip install nonexistent-package
+Status: ❌ Failed (Exit Code: 1)
+Execution Time: 2.11s
+Return Code: 1
+
+📥 STDERR:
+ERROR: Could not find a version that satisfies the requirement nonexistent-package
+```
+
+### **📁 File Output for Long Results**
+
+When command output exceeds Telegram's message limit:
+
+```
+🐚 Shell Command Executed
+
+Command: pip list
+Status: ✅ Success
+Execution Time: 1.23s  
+Return Code: 0
+
+⚠️ Output too long - sending as file...
+```
+
+File contains:
+```
+Shell Command: pip list
+Executed at: 2025-09-05 20:30:45 UTC
+Return Code: 0
+Execution Time: 1.23s
+==================================================
+
+STDOUT:
+Package           Version
+----------------- -------
+aiohttp          3.8.4
+asyncio          3.4.3
+pyrogram         2.0.106
+...
+```
+
+### **🔧 Advanced Use Cases**
+
+#### **Package Management After Updates**
+```bash
+# Check current packages
+/shell pip list | grep requests
+
+# Install missing package  
+/shell pip install requests==2.31.0
+
+# Verify installation
+/shell python -c "import requests; print(requests.__version__)"
+
+# Safe restart
+/restart
+```
+
+#### **System Maintenance**
+```bash
+# Check disk space
+/shell df -h
+
+# Monitor memory usage
+/shell free -m
+
+# Check running processes
+/shell ps aux | grep python
+
+# View system uptime
+/shell uptime
+```
+
+#### **Git Repository Management**
+```bash
+# Check repository status
+/shell git status
+
+# View recent commits
+/shell git log --oneline -10
+
+# Check branches
+/shell git branch -v
+
+# View file changes
+/shell git diff HEAD~1
+```
+
+### **⚠️ Important Security Notes**
+
+- **Owner Only**: Command is restricted to bot owner ID
+- **No Interactive Commands**: Commands requiring input (like `nano`, `vim`) won't work
+- **Environment Isolation**: Commands run in bot's working directory with bot's environment
+- **Logging**: All shell commands are logged with user ID, timestamp, and results
+- **Timeout**: Commands are automatically killed after 5 minutes
+
+### **🚨 Best Practices**
+
+#### **✅ Safe Commands**
+- Package installation: `pip install`, `pip uninstall`
+- System monitoring: `ps`, `df`, `free`, `top`  
+- File viewing: `cat`, `head`, `tail`, `ls`
+- Git operations: `git status`, `git log`
+- Version checks: `python --version`, `pip --version`
+
+#### **⚠️ Use with Caution**
+- File operations: `mv`, `cp`, `rm` (without `-rf`)
+- Permission changes: `chmod` (specific files only)
+- Process management: `kill` (specific PIDs only)
+
+#### **❌ Never Use**
+- `rm -rf` (mass deletion)
+- `sudo su` (privilege escalation)  
+- `format`, `mkfs` (disk operations)
+- System file modifications in `/etc`, `/dev`
 
 ---
 

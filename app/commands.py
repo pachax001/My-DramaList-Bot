@@ -61,6 +61,7 @@ class BotCommandManager:
             BotCommand("health", "Check service health status"),
             BotCommand("cachereload", "Clear all caches and restart cache client"),
             BotCommand("restart", "Force update from GitHub and restart bot"),
+            BotCommand("shell", "Execute shell commands (use with extreme caution)"),
         ]
         return base_commands + owner_only_commands
     

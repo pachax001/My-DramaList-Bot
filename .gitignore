@@ -25,6 +25,7 @@ update.log
 # Runtime status files
 restart_status.json
 temp_restart_client.session*
+shell_output_*.txt
 
 # Virtual environments
 venv/
