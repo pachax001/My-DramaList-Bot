@@ -171,27 +171,39 @@ class IMDBAdapter:
             # Helper function to safely extract list data
             def extract_names(category_list, limit=10):
                 """Extract names from category list with limit."""
-                if not category_list:
+                if not category_list or category_list is None:
                     return []
-                return [person.name for person in category_list[:limit] if hasattr(person, 'name')]
+                try:
+                    return [person.name for person in category_list[:limit] if hasattr(person, 'name') and person.name]
+                except (AttributeError, TypeError):
+                    return []
             
             def extract_cast_with_characters(cast_list, limit=15):
                 """Extract cast with character names."""
-                if not cast_list:
+                if not cast_list or cast_list is None:
                     return []
                 cast_info = []
-                for cast_member in cast_list[:limit]:
-                    if hasattr(cast_member, 'name'):
-                        name = cast_member.name
-                        if hasattr(cast_member, 'characters') and cast_member.characters:
-                            characters = ', '.join(cast_member.characters[:2])  # Limit to 2 characters
-                            cast_info.append(f"{name} ({characters})")
-                        else:
-                            cast_info.append(name)
+                try:
+                    for cast_member in cast_list[:limit]:
+                        if hasattr(cast_member, 'name') and cast_member.name:
+                            name = cast_member.name
+                            if hasattr(cast_member, 'characters') and cast_member.characters:
+                                try:
+                                    characters = ', '.join(str(c) for c in cast_member.characters[:2] if c)  # Limit to 2 characters
+                                    if characters:
+                                        cast_info.append(f"{name} ({characters})")
+                                    else:
+                                        cast_info.append(name)
+                                except (AttributeError, TypeError):
+                                    cast_info.append(name)
+                            else:
+                                cast_info.append(name)
+                except (AttributeError, TypeError):
+                    pass
                 return cast_info
             
             # Extract comprehensive data from categories
-            categories = getattr(movie, 'categories', {})
+            categories = getattr(movie, 'categories', {}) or {}
             
             # Basic information
             movie_data = {
@@ -200,12 +212,12 @@ class IMDBAdapter:
                 'rating': str(getattr(movie, 'rating', '')) if getattr(movie, 'rating', None) else None,
                 'votes': str(getattr(movie, 'votes', '')) if getattr(movie, 'votes', None) else None,
                 'plot': getattr(movie, 'plot', None),
-                'genres': getattr(movie, 'genres', []),
-                'runtimes': getattr(movie, 'runtimes', []),
-                'countries': getattr(movie, 'countries', []),
-                'country_codes': getattr(movie, 'country_codes', []),
-                'languages': getattr(movie, 'languages', []),
-                'languages_text': getattr(movie, 'languages_text', []),
+                'genres': getattr(movie, 'genres', []) or [],
+                'runtimes': getattr(movie, 'runtimes', []) or [],
+                'countries': getattr(movie, 'countries', []) or [],
+                'country_codes': getattr(movie, 'country_codes', []) or [],
+                'languages': getattr(movie, 'languages', []) or [],
+                'languages_text': getattr(movie, 'languages_text', []) or [],
                 'mpaa': getattr(movie, 'mpaa', None),
                 'kind': getattr(movie, 'kind', 'movie'),
                 'url': getattr(movie, 'url', None),
@@ -219,15 +231,15 @@ class IMDBAdapter:
                 'info_episode': getattr(movie, 'info_episode', None),
                 
                 # Release information
-                'release_dates': getattr(movie, 'release_dates', []),
+                'release_dates': getattr(movie, 'release_dates', []) or [],
                 'premiere_date': getattr(movie, 'premiere_date', None),
                 'original_air_date': getattr(movie, 'original_air_date', None),
                 
                 # Technical details
-                'aspect_ratios': getattr(movie, 'aspect_ratios', []),
-                'sound_mix': getattr(movie, 'sound_mix', []),
-                'color_info': getattr(movie, 'color_info', []),
-                'cameras': getattr(movie, 'cameras', []),
+                'aspect_ratios': getattr(movie, 'aspect_ratios', []) or [],
+                'sound_mix': getattr(movie, 'sound_mix', []) or [],
+                'color_info': getattr(movie, 'color_info', []) or [],
+                'cameras': getattr(movie, 'cameras', []) or [],
                 
                 # Box office and awards
                 'budget': getattr(movie, 'budget', None),
@@ -236,8 +248,8 @@ class IMDBAdapter:
                 'opening_weekend_usa': getattr(movie, 'opening_weekend_usa', None),
                 
                 # Content ratings
-                'certificates': getattr(movie, 'certificates', []),
-                'parents_guide': getattr(movie, 'parents_guide', {}),
+                'certificates': getattr(movie, 'certificates', []) or [],
+                'parents_guide': getattr(movie, 'parents_guide', {}) or {},
                 
                 # People categories
                 'cast': extract_cast_with_characters(categories.get('cast', []), 15),
