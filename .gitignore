@@ -3,6 +3,8 @@
 
 #config.env
 config.env
+.env
+*.env
 
 #bot session
 mydramalist_bot.session
