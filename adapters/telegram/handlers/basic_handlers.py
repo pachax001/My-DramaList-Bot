@@ -163,19 +163,52 @@ async def send_log(client: Client, message: Message):
         return
     
     try:
-        # Check if log file exists
-        log_files = ["bot.log", "app.log", "main.log"]
+        import glob
+        
+        # Look for log files in various locations
+        log_patterns = [
+            "logs/current.log",    # Current log symlink
+            "logs/bot_*.log",      # Docker/container logs  
+            "bot*.log",            # Current directory logs
+            "app.log",             # Standard app log
+            "main.log"             # Main log file
+        ]
+        
         log_file = None
+        latest_time = 0
         
-        for filename in log_files:
-            if os.path.exists(filename):
-                log_file = filename
-                break
+        # Find the most recent log file
+        for pattern in log_patterns:
+            files = glob.glob(pattern)
+            for file_path in files:
+                if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                    file_time = os.path.getmtime(file_path)
+                    if file_time > latest_time:
+                        latest_time = file_time
+                        log_file = file_path
         
-        if log_file and os.path.getsize(log_file) > 0:
-            await message.reply_document(log_file, caption="📄 Bot Log File")
+        if log_file:
+            # Send only the last 50 lines if file is too large
+            file_size = os.path.getsize(log_file)
+            if file_size > 50 * 1024 * 1024:  # 50MB limit
+                await message.reply_text("📄 Log file is too large. Sending last 1000 lines...")
+                
+                # Read last 1000 lines
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                    last_lines = ''.join(lines[-1000:]) if len(lines) > 1000 else ''.join(lines)
+                
+                # Create temporary file with recent logs
+                temp_log = "recent_logs.txt"
+                with open(temp_log, 'w', encoding='utf-8') as f:
+                    f.write(last_lines)
+                
+                await message.reply_document(temp_log, caption=f"📄 Recent Bot Logs (last 1000 lines)\nFrom: {log_file}")
+                os.remove(temp_log)  # Clean up temp file
+            else:
+                await message.reply_document(log_file, caption=f"📄 Bot Log File\nFrom: {log_file}")
         else:
-            await message.reply_text("📄 No log file available or file is empty.")
+            await message.reply_text("📄 No log file available or all files are empty.")
             
     except Exception as e:
         logger.error(f"Error sending log: {e}")

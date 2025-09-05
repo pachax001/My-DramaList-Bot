@@ -87,7 +87,7 @@ setup_python_env() {
         # Install/upgrade requirements if file exists and has been updated
         if [ -f "$REQUIREMENTS_FILE" ]; then
             log_info "Checking Python dependencies"
-            pip install --user --upgrade -r "$REQUIREMENTS_FILE"
+            pip install --user --no-deps --upgrade -r "$REQUIREMENTS_FILE" >/dev/null 2>&1
         fi
         
         log_info "Python environment ready (Docker mode)"
@@ -213,13 +213,13 @@ run_secure_update() {
             log_info "Checking dependencies after update"
             
             if [ "$IN_DOCKER" = "true" ]; then
-                # In Docker, install user packages to avoid permission issues
-                pip install --user -r "$REQUIREMENTS_FILE"
+                # In Docker, install user packages quietly
+                pip install --user --no-deps -r "$REQUIREMENTS_FILE" >/dev/null 2>&1
             else
                 # Local environment with virtual environment
                 # shellcheck source=/dev/null
                 source "$VENV_DIR/bin/activate"
-                pip install -r "$REQUIREMENTS_FILE"
+                pip install --no-deps -r "$REQUIREMENTS_FILE" >/dev/null 2>&1
             fi
         fi
         
@@ -320,6 +320,13 @@ start_bot() {
     
     # Create log file with timestamp
     local log_file="$LOG_DIR/bot_$(date +%Y%m%d_%H%M%S).log"
+    
+    # Create a symlink for easy access (current.log)
+    local current_log="$LOG_DIR/current.log"
+    if [ -L "$current_log" ]; then
+        rm "$current_log"
+    fi
+    ln -sf "$(basename "$log_file")" "$current_log" 2>/dev/null || true
     
     # Start the bot
     log_info "Bot starting... Logs: $log_file"
