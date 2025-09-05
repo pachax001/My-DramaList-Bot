@@ -41,6 +41,11 @@ class SecureUpdater:
         self.current_dir = Path.cwd()
         self.temp_dir: Optional[Path] = None
         
+        # Docker detection
+        self.in_docker = self._detect_docker_environment()
+        if self.in_docker:
+            logger.info("🐳 Docker environment detected")
+        
     def _validate_repo_url(self, url: str) -> str:
         """Validate repository URL to prevent injection attacks."""
         if not url:
@@ -73,6 +78,30 @@ class SecureUpdater:
             raise ValueError("Branch name contains invalid characters")
             
         return branch
+    
+    def _detect_docker_environment(self) -> bool:
+        """Detect if running inside a Docker container."""
+        # Check for Docker-specific files and environment
+        docker_indicators = [
+            Path("/.dockerenv"),
+            Path("/proc/1/cgroup")
+        ]
+        
+        for indicator in docker_indicators:
+            if indicator.exists():
+                if indicator.name == "cgroup":
+                    # Check if cgroup contains docker
+                    try:
+                        content = indicator.read_text()
+                        if "docker" in content or "containerd" in content:
+                            return True
+                    except:
+                        pass
+                else:
+                    return True
+        
+        # Check environment variables
+        return bool(os.getenv("KUBERNETES_SERVICE_HOST")) or bool(os.getenv("IN_DOCKER"))
         
     def _run_command(self, cmd: list, cwd: Optional[Path] = None, capture_output: bool = True) -> subprocess.CompletedProcess:
         """Safely run a command with proper error handling."""
@@ -99,12 +128,9 @@ class SecureUpdater:
             
     def _create_backup(self) -> Path:
         """Create backup of current installation."""
-        timestamp = subprocess.run(
-            ["date", "+%Y%m%d_%H%M%S"],
-            capture_output=True,
-            text=True,
-            check=True
-        ).stdout.strip()
+        # Use Python for cross-platform timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         backup_path = self.backup_dir / f"backup_{timestamp}"
         backup_path.mkdir(parents=True, exist_ok=True)
@@ -114,8 +140,8 @@ class SecureUpdater:
         # Files to backup (exclude temp files, logs, etc.)
         important_files = [
             "*.py", "requirements.txt", "Dockerfile", "docker-compose.yml",
-            "redis.conf", "adapters/", "app/", "domain/", "infra/", "tests/",
-            "README.md", "CLAUDE.md"
+            "redis.conf", "start.sh", "adapters/", "app/", "domain/", "infra/", 
+            "tests/", "README.md", "CLAUDE.md", ".env.example"
         ]
         
         for pattern in important_files:
@@ -212,8 +238,16 @@ class SecureUpdater:
         # Files and directories to update
         update_items = [
             "main.py", "requirements.txt", "Dockerfile", "docker-compose.yml",
+            "redis.conf", "start.sh", "update.py",
             "adapters/", "app/", "domain/", "infra/", "tests/"
         ]
+        
+        # Add Docker-specific handling
+        if self.in_docker:
+            logger.info("📦 Applying Docker-aware update...")
+            # In Docker, we might have permission issues with some files
+            # Skip certain files that are handled by the container build process
+            update_items = [item for item in update_items if item not in ["Dockerfile"]]
         
         for item_name in update_items:
             source_path = source_dir / item_name

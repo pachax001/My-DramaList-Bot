@@ -4,12 +4,19 @@ FROM python:3.13.7-slim
 # Set the working directory
 WORKDIR /usr/src/app
 
-# Install system dependencies
+# Install system dependencies including git for auto-updates
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
+    curl \
+    ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Create directories for persistent data
+RUN mkdir -p /usr/src/app/backups \
+             /usr/src/app/logs \
+             /usr/src/app/.git
 
 # Copy requirements first for better caching
 COPY requirements.txt .
@@ -20,11 +27,31 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Configure git for container environment
-RUN git config --global --add safe.directory /usr/src/app
+# Configure git for container environment and auto-updates
+RUN git config --global --add safe.directory /usr/src/app && \
+    git config --global user.email "bot@mydramalist.com" && \
+    git config --global user.name "MyDramaList Bot" && \
+    git config --global init.defaultBranch main
 
-# Make start.sh executable
-RUN chmod +x start.sh
+# Make scripts executable
+RUN chmod +x start.sh && \
+    chmod +x update.py
 
-# Run the application
+# Create non-root user for security
+RUN groupadd -r botuser && useradd -r -g botuser -d /usr/src/app -s /sbin/nologin botuser && \
+    chown -R botuser:botuser /usr/src/app
+
+# Switch to non-root user
+USER botuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python3 -c "import requests; requests.get('http://localhost:8080/health', timeout=5)" || exit 1
+
+# Default environment variables for auto-update
+ENV AUTO_UPDATE=${AUTO_UPDATE:-false}
+ENV UPDATE_ON_START=${UPDATE_ON_START:-false}
+ENV BACKUP_ON_UPDATE=${BACKUP_ON_UPDATE:-true}
+
+# Run the application with auto-update support
 CMD ["bash", "start.sh"]

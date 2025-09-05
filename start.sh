@@ -1,8 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-# MyDramaList Bot Startup Script
+# MyDramaList Bot Startup Script with Auto-Update Support
 # This script handles bot startup, updates, and basic maintenance tasks
+# Supports both local and Docker container environments
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,8 +11,19 @@ BOT_NAME="MyDramaList Bot"
 LOG_DIR="$SCRIPT_DIR/logs"
 VENV_DIR="$SCRIPT_DIR/.venv"
 REQUIREMENTS_FILE="$SCRIPT_DIR/requirements.txt"
+
+# Auto-update configuration from environment
 UPDATE_REPO="${UPDATE_REPO:-https://github.com/pachax001/My-DramaList-Bot}"
 UPDATE_BRANCH="${UPDATE_BRANCH:-main}"
+AUTO_UPDATE="${AUTO_UPDATE:-false}"
+UPDATE_ON_START="${UPDATE_ON_START:-false}"
+BACKUP_ON_UPDATE="${BACKUP_ON_UPDATE:-true}"
+
+# Docker detection
+IN_DOCKER="${IN_DOCKER:-false}"
+if [ -f /.dockerenv ] || [ -n "${KUBERNETES_SERVICE_HOST:-}" ]; then
+    IN_DOCKER="true"
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -63,6 +75,26 @@ setup_directories() {
 setup_python_env() {
     log_step "Setting up Python environment"
     
+    # Skip virtual environment setup in Docker
+    if [ "$IN_DOCKER" = "true" ]; then
+        log_info "Running in Docker container, skipping virtual environment setup"
+        
+        # Check Python version
+        local python_version
+        python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+        log_info "Found Python $python_version"
+        
+        # Install/upgrade requirements if file exists and has been updated
+        if [ -f "$REQUIREMENTS_FILE" ]; then
+            log_info "Checking Python dependencies"
+            pip install --user --upgrade -r "$REQUIREMENTS_FILE"
+        fi
+        
+        log_info "Python environment ready (Docker mode)"
+        return 0
+    fi
+    
+    # Local environment setup
     # Check Python version
     if ! check_command python3; then
         log_error "Python 3 is required but not found"
@@ -132,7 +164,19 @@ check_config() {
     log_info "Configuration check complete"
 }
 
-# Update functions
+# Auto-update functions
+auto_update_check() {
+    log_step "Checking auto-update configuration"
+    
+    if [ "$AUTO_UPDATE" = "true" ] || [ "$UPDATE_ON_START" = "true" ]; then
+        log_info "Auto-update enabled"
+        return 0
+    else
+        log_info "Auto-update disabled"
+        return 1
+    fi
+}
+
 run_secure_update() {
     log_step "Running secure update"
     
@@ -148,23 +192,65 @@ run_secure_update() {
     
     log_info "Updating from repository: $UPDATE_REPO"
     log_info "Branch: $UPDATE_BRANCH"
+    log_info "Backup on update: $BACKUP_ON_UPDATE"
+    
+    # Prepare update command
+    local update_cmd="python3 \"$SCRIPT_DIR/update.py\" --repo \"$UPDATE_REPO\" --branch \"$UPDATE_BRANCH\""
+    
+    # Skip backup if disabled
+    if [ "$BACKUP_ON_UPDATE" = "false" ]; then
+        update_cmd="$update_cmd --skip-backup"
+        log_warn "Backup creation disabled - no rollback will be possible"
+    fi
     
     # Run the secure update script
-    if python3 "$SCRIPT_DIR/update.py" --repo "$UPDATE_REPO" --branch "$UPDATE_BRANCH"; then
-        log_info "Update completed successfully"
+    log_info "Executing update command..."
+    if eval "$update_cmd"; then
+        log_info "✅ Update completed successfully"
         
         # Reinstall dependencies if requirements changed
         if [ -f "$REQUIREMENTS_FILE" ]; then
-            log_info "Reinstalling dependencies after update"
-            # shellcheck source=/dev/null
-            source "$VENV_DIR/bin/activate"
-            pip install -r "$REQUIREMENTS_FILE"
+            log_info "Checking dependencies after update"
+            
+            if [ "$IN_DOCKER" = "true" ]; then
+                # In Docker, install user packages to avoid permission issues
+                pip install --user -r "$REQUIREMENTS_FILE"
+            else
+                # Local environment with virtual environment
+                # shellcheck source=/dev/null
+                source "$VENV_DIR/bin/activate"
+                pip install -r "$REQUIREMENTS_FILE"
+            fi
         fi
+        
+        # Show update summary
+        log_info "📄 Update summary:"
+        log_info "  - Repository: $UPDATE_REPO"
+        log_info "  - Branch: $UPDATE_BRANCH"
+        log_info "  - Backup created: $BACKUP_ON_UPDATE"
+        log_info "  - Environment: $([ "$IN_DOCKER" = "true" ] && echo "Docker" || echo "Local")"
         
         return 0
     else
-        log_error "Update failed"
+        log_error "❌ Update failed"
+        
+        if [ "$BACKUP_ON_UPDATE" = "true" ]; then
+            log_info "💾 Backup should be available in backups/ directory for manual rollback"
+            log_info "    Use: python3 update.py --rollback backups/backup_YYYYMMDD_HHMMSS"
+        fi
+        
         return 1
+    fi
+}
+
+# Container restart function for post-update
+request_container_restart() {
+    if [ "$IN_DOCKER" = "true" ]; then
+        log_info "🔄 Container restart may be needed for complete update"
+        log_info "   Run: docker-compose restart mydramalist-bot"
+        
+        # Create restart indicator file
+        touch "$SCRIPT_DIR/.restart_needed"
     fi
 }
 
@@ -343,11 +429,23 @@ main() {
         exit 0
     fi
     
-    # Run update if requested
-    if [ "$run_update" = true ]; then
+    # Auto-update logic
+    if [ "$run_update" = true ] || auto_update_check; then
+        log_info "🔄 Starting update process..."
+        
         if ! run_secure_update; then
             log_error "Update failed, aborting startup"
-            exit 1
+            
+            # In Docker, we might want to continue with old version
+            if [ "$IN_DOCKER" = "true" ] && [ "${CONTINUE_ON_UPDATE_FAIL:-false}" = "true" ]; then
+                log_warn "Continuing with current version due to CONTINUE_ON_UPDATE_FAIL=true"
+            else
+                exit 1
+            fi
+        else
+            # Mark successful update
+            echo "$(date '+%Y-%m-%d %H:%M:%S')" > "$SCRIPT_DIR/.last_update"
+            request_container_restart
         fi
     fi
     

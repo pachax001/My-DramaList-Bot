@@ -3,22 +3,61 @@ services:
     build: .
     container_name: mydramalist-bot
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
+      # System Configuration
       - PYTHONPATH=/usr/src/app
       - REDIS_URL=redis://redis:6379/0
+      - TZ=${TZ:-UTC}
+      
+      # Auto-Update Configuration
+      - UPDATE_REPO=${UPDATE_REPO:-https://github.com/pachax001/My-DramaList-Bot}
+      - UPDATE_BRANCH=${UPDATE_BRANCH:-main}
+      - AUTO_UPDATE=${AUTO_UPDATE:-true}
+      - UPDATE_ON_START=${UPDATE_ON_START:-true}
+      - BACKUP_ON_UPDATE=${BACKUP_ON_UPDATE:-true}
+      
+      # Performance Configuration
+      - MAX_CONNECTIONS=${MAX_CONNECTIONS:-20}
+      - CACHE_TTL=${CACHE_TTL:-3600}
+      
+      # Security Configuration
+      - IS_PUBLIC=${IS_PUBLIC:-false}
     volumes:
+      # Persistent data volumes
+      - bot-backups:/usr/src/app/backups
+      - bot-logs:/usr/src/app/logs
+      - bot-data:/usr/src/app/data
+      
+      # Time synchronization
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
+      
+      # Git directory for updates (if using auto-update)
+      - bot-git:/usr/src/app/.git
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - bot-network
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "com.mydramalist.service=bot"
+      - "com.mydramalist.auto-update=${AUTO_UPDATE:-false}"
 
   redis:
     image: redis:7-alpine
     container_name: mydramalist-redis
     restart: unless-stopped
     command: redis-server /usr/local/etc/redis/redis.conf
+    environment:
+      - TZ=${TZ:-UTC}
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
       - redis-data:/data
@@ -30,10 +69,41 @@ services:
       timeout: 3s
       retries: 3
       start_period: 30s
+    sysctls:
+      - net.core.somaxconn=65535
+    labels:
+      - "com.mydramalist.service=redis"
 
 volumes:
+  # Redis data volume
   redis-data:
+    driver: local
+    labels:
+      - "com.mydramalist.volume=redis-data"
+      
+  # Bot persistent data volumes
+  bot-backups:
+    driver: local
+    labels:
+      - "com.mydramalist.volume=backups"
+      
+  bot-logs:
+    driver: local
+    labels:
+      - "com.mydramalist.volume=logs"
+      
+  bot-data:
+    driver: local
+    labels:
+      - "com.mydramalist.volume=data"
+      
+  bot-git:
+    driver: local
+    labels:
+      - "com.mydramalist.volume=git"
 
 networks:
   bot-network:
     driver: bridge
+    labels:
+      - "com.mydramalist.network=main"
