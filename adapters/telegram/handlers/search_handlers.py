@@ -1,15 +1,16 @@
 """Search command handlers."""
 
 import uuid
-from typing import Optional
+
 from pyrogram import Client
 from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from infra.logging import get_logger, set_correlation_id
-from infra.db import mongo_client
-from infra.ratelimit import user_limiter
-from adapters.mydramalist import mydramalist_adapter
+
 from adapters.imdb import imdb_adapter
+from adapters.mydramalist import mydramalist_adapter
 from domain.services import template_service
+from infra.db import mongo_client
+from infra.logging import get_logger, set_correlation_id
+from infra.ratelimit import user_limiter
 
 logger = get_logger(__name__)
 
@@ -21,9 +22,10 @@ async def search_dramas_command(client: Client, message: Message) -> None:
     
     # Apply user rate limiting first
     if not await user_limiter.is_allowed(f"user:{user_id}", limit=10, window=60):
-        return await message.reply_text(
+        await message.reply_text(
             "🚦 You're sending requests too quickly. Please wait a moment before trying again."
         )
+        return
     
     # Check authorization (simplified)
     public_setting = await mongo_client.db.settings.find_one({"key": "public_mode"})
@@ -33,12 +35,14 @@ async def search_dramas_command(client: Client, message: Message) -> None:
         # Check if user is authorized
         auth_user = await mongo_client.db.authorized_users.find_one({"user_id": user_id})
         if not auth_user:
-            return await message.reply_text("❌ You are not authorized to use this bot.")
+            await message.reply_text("❌ You are not authorized to use this bot.")
+            return
     
     # Parse query
     parts = message.text.split(" ", 1)
     if len(parts) < 2:
-        return await message.reply_text("Usage: /mdl <search_query>")
+        await message.reply_text("Usage: /mdl <search_query>")
+        return
     
     query = parts[1].strip()
     logger.info(f"User {user_id} searching MDL for: {query}")
@@ -50,7 +54,8 @@ async def search_dramas_command(client: Client, message: Message) -> None:
         dramas = await mydramalist_adapter.search_dramas(query)
         
         if not dramas:
-            return await processing_msg.edit_text("❌ No dramas found for that query.")
+            await processing_msg.edit_text("❌ No dramas found for that query.")
+            return
         
         # Build keyboard
         keyboard = []
@@ -80,9 +85,10 @@ async def search_imdb(client: Client, message: Message) -> None:
     
     # Apply user rate limiting first
     if not await user_limiter.is_allowed(f"user:{user_id}", limit=10, window=60):
-        return await message.reply_text(
+        await message.reply_text(
             "🚦 You're sending requests too quickly. Please wait a moment before trying again."
         )
+        return
     
     # Check authorization (simplified)
     public_setting = await mongo_client.db.settings.find_one({"key": "public_mode"})
@@ -91,12 +97,14 @@ async def search_imdb(client: Client, message: Message) -> None:
     if not is_public:
         auth_user = await mongo_client.db.authorized_users.find_one({"user_id": user_id})
         if not auth_user:
-            return await message.reply_text("❌ You are not authorized to use this bot.")
+            await message.reply_text("❌ You are not authorized to use this bot.")
+            return
     
     # Parse query
     parts = message.text.split(" ", 1)
     if len(parts) < 2:
-        return await message.reply_text("Usage: /imdb <search_query>")
+        await message.reply_text("Usage: /imdb <search_query>")
+        return
     
     query = parts[1].strip()
     logger.info(f"User {user_id} searching IMDB for: {query}")
@@ -108,7 +116,8 @@ async def search_imdb(client: Client, message: Message) -> None:
         movies = await imdb_adapter.search_movies(query)
         
         if not movies:
-            return await processing_msg.edit_text("❌ No movies found for that query.")
+            await processing_msg.edit_text("❌ No movies found for that query.")
+            return
         
         # Build keyboard
         keyboard = []
@@ -145,7 +154,8 @@ async def drama_details_callback(client: Client, callback_query: CallbackQuery) 
         drama_data = await mydramalist_adapter.get_drama_details(slug)
         
         if not drama_data:
-            return await callback_query.answer("❌ Failed to get drama details.", show_alert=True)
+            await callback_query.answer("❌ Failed to get drama details.", show_alert=True)
+            return
         
         # Get user template
         user_template_doc = await mongo_client.db.mdl_templates.find_one({"user_id": user_id})
@@ -187,7 +197,8 @@ async def imdb_details_callback(client: Client, callback_query: CallbackQuery) -
         movie_data = await imdb_adapter.get_movie_details(movie_id)
         
         if not movie_data:
-            return await callback_query.answer("❌ Failed to get movie details.", show_alert=True)
+            await callback_query.answer("❌ Failed to get movie details.", show_alert=True)
+            return
         
         # Get user template
         user_template_doc = await mongo_client.db.imdb_templates.find_one({"user_id": user_id})
