@@ -8,6 +8,7 @@ from typing import NoReturn
 from contextlib import asynccontextmanager
 from pyrogram import Client
 from pyrogram.types import BotCommand, BotCommandScopeChat
+from pyrogram.enums import ParseMode
 
 # Enable uvloop on POSIX systems for better performance
 if os.name == "posix":
@@ -166,13 +167,13 @@ class HighPerformanceBot:
         async def health_check(client, message):
             """Health check endpoint for monitoring."""
             health_status = await HealthChecker.check_services()
-            status_text = "🏥 **Service Health Status**\\n\\n"
+            status_text = "🏥 <b>Service Health Status</b>\n\n"
             
             for service, status in health_status.items():
                 emoji = "✅" if status == "healthy" else "❌"
-                status_text += f"{emoji} **{service.title()}**: {status}\\n"
+                status_text += f"{emoji} <b>{service.title()}:</b> {status}\n"
             
-            await message.reply_text(status_text)
+            await message.reply_text(status_text, parse_mode=ParseMode.HTML)
         
         logger.info("All handlers registered with performance monitoring")
     

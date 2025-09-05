@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONPATH=/usr/src/app
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro

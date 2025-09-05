@@ -3,6 +3,7 @@
 import os
 from pyrogram import Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.enums import ParseMode
 from infra.config import settings
 from infra.logging import get_logger
 from infra.db import mongo_client
@@ -41,12 +42,12 @@ async def start_command(client: Client, message: Message):
         is_public = public_setting.get("value", False) if public_setting else settings.is_public
         
         text = (
-            f"👋 Hello, Owner (ID: `{settings.owner_id}`).\n\n"
-            f"🔓 **Bot Public Mode:** {'Enabled' if is_public else 'Disabled'}\n\n"
-            f"👥 **Total Users:** {total_users}\n\n"
+            f"👋 Hello, Owner (ID: <code>{settings.owner_id}</code>).\n\n"
+            f"🔓 <b>Bot Public Mode:</b> {'Enabled' if is_public else 'Disabled'}\n\n"
+            f"👥 <b>Total Users:</b> {total_users}\n\n"
             "⚙️ Use the following commands to manage access:\n"
-            "/authorize <user_id> - Grant access\n"
-            "/unauthorize <user_id> - Revoke access\n\n"
+            "/authorize &lt;user_id&gt; - Grant access\n"
+            "/unauthorize &lt;user_id&gt; - Revoke access\n\n"
             "📄 Use /help to see all available commands."
         )
         
@@ -75,7 +76,7 @@ async def start_command(client: Client, message: Message):
             [InlineKeyboardButton("Search Inline (MyDramaList)", switch_inline_query_current_chat="")]
         ])
 
-    await message.reply_text(text, reply_markup=keyboard)
+    await message.reply_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
 
 async def help_command(client: Client, message: Message):
@@ -200,26 +201,26 @@ async def user_stats_command(client: Client, message: Message):
         is_public = public_setting.get("value", False) if public_setting else settings.is_public
         
         stats_text = f"""
-📊 **Bot Statistics**
+📊 <b>Bot Statistics</b>
 
-👥 **Users:**
+👥 <b>Users:</b>
 • Total Users: {total_users}
 • Authorized Users: {authorized_users}
 
-🎨 **Templates:**
+🎨 <b>Templates:</b>
 • MDL Templates: {mdl_templates}
 • IMDB Templates: {imdb_templates}
 
-⚙️ **Settings:**
+⚙️ <b>Settings:</b>
 • Public Mode: {'Enabled' if is_public else 'Disabled'}
 
-🔧 **System:**
+🔧 <b>System:</b>
 • Redis Caching: Enabled
 • MongoDB: Connected
 • HTTP Pooling: Active
 """
         
-        await message.reply_text(stats_text)
+        await message.reply_text(stats_text, parse_mode=ParseMode.HTML)
         
     except Exception as e:
         logger.error(f"Error getting user stats: {e}")

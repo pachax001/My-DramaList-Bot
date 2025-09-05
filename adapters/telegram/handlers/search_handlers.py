@@ -5,6 +5,7 @@ import uuid
 
 from pyrogram import Client
 from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.enums import ParseMode
 
 from adapters.imdb import imdb_adapter
 from adapters.mydramalist import mydramalist_adapter
@@ -171,11 +172,12 @@ async def _process_mdl_url_direct(client: Client, message: Message, url: str, us
             await message.reply_photo(
                 photo=poster_url,
                 caption=caption,
-                reply_markup=markup
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML
             )
         else:
             # Edit processing message to show details
-            await processing_msg.edit_text(caption, reply_markup=markup)
+            await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
         
     except Exception as e:
         logger.error(f"Error in MDL URL processing with /mdl: {e}")
@@ -296,8 +298,23 @@ async def _process_imdb_url_direct(client: Client, message: Message, url: str, u
         # Create close button
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("🚫 Close", callback_data="close_search")]])
         
-        # Send details
-        await processing_msg.edit_text(caption, reply_markup=markup)
+        # Check if poster is available
+        poster_url = movie_data.get("poster")
+        
+        # Send details with or without poster
+        if poster_url and poster_url != "N/A" and poster_url.strip():
+            # Delete processing message first
+            await processing_msg.delete()
+            # Send as photo with caption
+            await message.reply_photo(
+                photo=poster_url,
+                caption=caption,
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            # Edit processing message to show details
+            await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
         
     except Exception as e:
         logger.error(f"Error in IMDB URL processing with /imdb: {e}")
@@ -345,14 +362,16 @@ async def drama_details_callback(client: Client, callback_query: CallbackQuery) 
                 chat_id=callback_query.message.chat.id,
                 photo=poster_url,
                 caption=caption,
-                reply_markup=markup
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML
             )
         else:
             # Send as text message
             await client.send_message(
                 chat_id=callback_query.message.chat.id,
                 text=caption,
-                reply_markup=markup
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML
             )
         
         # Delete original message
@@ -391,12 +410,27 @@ async def imdb_details_callback(client: Client, callback_query: CallbackQuery) -
         # Create close button
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("🚫 Close", callback_data="close_search")]])
         
-        # Send details
-        await client.send_message(
-            chat_id=callback_query.message.chat.id,
-            text=caption,
-            reply_markup=markup
-        )
+        # Check if poster is available
+        poster_url = movie_data.get("poster")
+        
+        # Send details with or without poster
+        if poster_url and poster_url != "N/A" and poster_url.strip():
+            # Send as photo with caption
+            await client.send_photo(
+                chat_id=callback_query.message.chat.id,
+                photo=poster_url,
+                caption=caption,
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            # Send as text message
+            await client.send_message(
+                chat_id=callback_query.message.chat.id,
+                text=caption,
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML
+            )
         
         # Delete original message
         await callback_query.message.delete()
@@ -506,11 +540,12 @@ async def handle_drama_url(client: Client, message: Message) -> None:
             await message.reply_photo(
                 photo=poster_url,
                 caption=caption,
-                reply_markup=markup
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML
             )
         else:
             # Edit processing message to show details
-            await processing_msg.edit_text(caption, reply_markup=markup)
+            await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
         
     except Exception as e:
         logger.error(f"Error in MDL URL processing: {e}")
@@ -585,8 +620,23 @@ async def handle_imdb_url(client: Client, message: Message) -> None:
         # Create close button
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("🚫 Close", callback_data="close_search")]])
         
-        # Send details
-        await processing_msg.edit_text(caption, reply_markup=markup)
+        # Check if poster is available
+        poster_url = movie_data.get("poster")
+        
+        # Send details with or without poster
+        if poster_url and poster_url != "N/A" and poster_url.strip():
+            # Delete processing message first
+            await processing_msg.delete()
+            # Send as photo with caption
+            await message.reply_photo(
+                photo=poster_url,
+                caption=caption,
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            # Edit processing message to show details
+            await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
         
     except Exception as e:
         logger.error(f"Error in IMDB URL processing: {e}")
