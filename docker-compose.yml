@@ -7,6 +7,8 @@ services:
       - PYTHONPATH=/usr/src/app
     volumes:
       - .:/app
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     depends_on:
       - redis
     networks:
