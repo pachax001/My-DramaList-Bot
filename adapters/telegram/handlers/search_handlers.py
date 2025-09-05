@@ -647,7 +647,7 @@ async def handle_imdb_url(client: Client, message: Message) -> None:
 
 async def handle_inline_query(client: Client, inline_query) -> None:
     """Handle inline queries for MyDramaList search."""
-    from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent
+    from pyrogram.types import InlineQueryResultArticle, InlineQueryResultPhoto, InputTextMessageContent
     
     query = inline_query.query.strip()
     if not query or len(query) < 2:
@@ -676,27 +676,69 @@ async def handle_inline_query(client: Client, inline_query) -> None:
         results = []
         dramas = await mydramalist_adapter.search_dramas(query)
         
-        for drama in dramas[:15]:  # Limit to 15 results for inline
+        for i, drama in enumerate(dramas[:10]):  # Limit to 10 results for inline
             title = drama.get("title", "Unknown")
             year = drama.get("year", "")
             slug = drama.get("slug", "")
+            poster = drama.get("poster", "")
+            rating = drama.get("rating", "")
             
             display_title = f"{title} ({year})" if year else title
-            description = f"MyDramaList: {title}"
+            description = f"⭐ {rating} | MyDramaList" if rating else "MyDramaList"
             
-            # Create inline result
-            results.append(
-                InlineQueryResultArticle(
-                    id=f"mdl_{slug}_{uuid.uuid4().hex[:8]}",
-                    title=display_title,
-                    description=description,
-                    input_message_content=InputTextMessageContent(
-                        message_text=f"/mdl {title}",
-                        parse_mode=ParseMode.HTML
-                    ),
-                    thumb_url="https://mydramalist.com/favicon.ico"
+            # Store slug in result ID for later retrieval
+            result_id = f"mdl_{slug}"
+            
+            # Create message content that will be updated with full details
+            message_content = f"🎭 **{title}**"
+            if year:
+                message_content += f" ({year})"
+            if rating:
+                message_content += f"\n⭐ Rating: {rating}"
+            message_content += f"\n\n📺 *Click to view full details...*"
+            
+            # Use photo result if poster is available, otherwise use article
+            if poster and poster.strip() and poster != "N/A" and poster.startswith(('http://', 'https://')):
+                try:
+                    results.append(
+                        InlineQueryResultPhoto(
+                            id=result_id,
+                            photo_url=poster,
+                            thumb_url=poster,
+                            title=display_title,
+                            description=description,
+                            caption=message_content,
+                            parse_mode=ParseMode.MARKDOWN
+                        )
+                    )
+                except Exception as photo_error:
+                    logger.debug(f"Photo result failed for {title}: {photo_error}")
+                    # Fallback to article if photo fails
+                    results.append(
+                        InlineQueryResultArticle(
+                            id=result_id,
+                            title=display_title,
+                            description=description,
+                            input_message_content=InputTextMessageContent(
+                                message_text=message_content,
+                                parse_mode=ParseMode.MARKDOWN
+                            ),
+                            thumb_url=poster if poster.startswith(('http://', 'https://')) else None
+                        )
+                    )
+            else:
+                results.append(
+                    InlineQueryResultArticle(
+                        id=result_id,
+                        title=display_title,
+                        description=description,
+                        input_message_content=InputTextMessageContent(
+                            message_text=message_content,
+                            parse_mode=ParseMode.MARKDOWN
+                        ),
+                        thumb_url="https://mydramalist.com/favicon.ico"
+                    )
                 )
-            )
         
         await inline_query.answer(results, cache_time=300)
         
@@ -706,13 +748,78 @@ async def handle_inline_query(client: Client, inline_query) -> None:
 
 
 async def handle_chosen_inline_result(client: Client, chosen_inline_result) -> None:
-    """Handle chosen inline results for analytics."""
+    """Handle chosen inline results - fetch and send formatted template."""
     try:
         result_id = chosen_inline_result.result_id
         user_id = chosen_inline_result.from_user.id
+        inline_message_id = chosen_inline_result.inline_message_id
         
         # Log usage for analytics
         logger.info(f"User {user_id} selected inline result: {result_id}")
+        
+        # Extract slug from result ID
+        if result_id.startswith("mdl_"):
+            slug = result_id[4:]  # Remove "mdl_" prefix
+            
+            # Get drama details
+            drama_data = await mydramalist_adapter.get_drama_details(slug)
+            
+            if not drama_data:
+                logger.error(f"Could not fetch drama details for slug: {slug}")
+                return
+            
+            # Get user template
+            user_template_doc = await mongo_client.db.mdl_templates.find_one({"user_id": user_id})
+            user_template = user_template_doc.get("template") if user_template_doc else None
+            
+            # Build formatted caption
+            formatted_content = template_service.build_mdl_caption(drama_data, slug, user_template)
+            
+            # Get poster URL
+            poster_url = None
+            if "data" in drama_data:
+                poster_url = drama_data["data"].get("poster")
+            else:
+                poster_url = drama_data.get("poster")
+            
+            # Edit the inline message to show formatted content
+            try:
+                if poster_url and poster_url.strip() and poster_url != "N/A":
+                    # Try to edit as photo with caption
+                    from pyrogram.types import InputMediaPhoto
+                    await client.edit_inline_media(
+                        inline_message_id=inline_message_id,
+                        media=InputMediaPhoto(poster_url, caption=formatted_content, parse_mode=ParseMode.HTML)
+                    )
+                else:
+                    # Edit as text message
+                    await client.edit_inline_text(
+                        inline_message_id=inline_message_id,
+                        text=formatted_content,
+                        parse_mode=ParseMode.HTML
+                    )
+                    
+                logger.info(f"Successfully updated inline result for user {user_id}, drama: {slug}")
+                
+            except Exception as edit_error:
+                logger.error(f"Failed to edit inline message: {edit_error}")
+                # Fallback: Send message to user's private chat if possible
+                try:
+                    if poster_url and poster_url.strip() and poster_url != "N/A":
+                        await client.send_photo(
+                            chat_id=user_id,
+                            photo=poster_url,
+                            caption=f"📺 **Drama Details from Inline Search:**\n\n{formatted_content}",
+                            parse_mode=ParseMode.HTML
+                        )
+                    else:
+                        await client.send_message(
+                            chat_id=user_id,
+                            text=f"📺 **Drama Details from Inline Search:**\n\n{formatted_content}",
+                            parse_mode=ParseMode.HTML
+                        )
+                except Exception as dm_error:
+                    logger.error(f"Failed to send DM to user {user_id}: {dm_error}")
         
     except Exception as e:
         logger.error(f"Error in chosen inline result: {e}")
