@@ -516,24 +516,15 @@ Performance:
 └ Ops/sec: 1
 
 Keys by Type:
-├ media_files: 0
-├ users: 1
-├ connections: 0
-├ active_channels: 0
-├ filters: 0
-├ filter_lists: 0
-├ search_results: 0
-├ rate_limits: 0
-├ bot_settings: 0
-├ sessions: 0
 ├ imdb_search: 125
 ├ imdb_details: 89
 ├ mdl_search: 203
 ├ mdl_details: 156
-└ user_templates: 12
+├ user_templates: 12
+└ ratelimit: 45
 
-Total Keys: 586
-Keys with TTL: 520
+Total Keys: 630
+Keys with TTL: 585
 ```
 
 #### **Key Metrics Explained:**
@@ -547,6 +538,17 @@ Keys with TTL: 520
 | **Hit Rate** | Cache efficiency percentage | > 75% |
 | **Hits/Misses** | Cache request statistics | Monitor ratios |
 | **Ops/sec** | Operations per second | Varies by load |
+
+#### **Cache Namespace Types:**
+
+| Namespace | Description | TTL | Purpose |
+|-----------|-------------|-----|---------|
+| **imdb_search** | IMDB search query results | 30 min | Movie/show search caching |
+| **imdb_details** | IMDB movie/show details | 24 hours | Complete movie info caching |
+| **mdl_search** | MyDramaList search results | 1 hour | Drama search query caching |
+| **mdl_details** | MyDramaList drama details | 12 hours | Complete drama info caching |
+| **user_templates** | Custom user display templates | 2 hours | User preference caching |
+| **ratelimit** | Rate limiting buckets | Variable | API protection & throttling |
 
 ### **🔍 /cache_analyze Command**
 

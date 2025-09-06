@@ -960,15 +960,20 @@ async def cache_stats_command(client: Client, message: Message):
         hit_rate = (keyspace_hits / total_requests * 100) if total_requests > 0 else 0
         
         # Get key counts by namespace
-        all_keys = await cache_client._redis.keys('v1:*')
+        v1_keys = await cache_client._redis.keys('v1:*')
+        ratelimit_keys = await cache_client._redis.keys('ratelimit:*')
+        all_keys = v1_keys + ratelimit_keys
         namespace_counts = {}
         total_keys = len(all_keys)
         
         for key in all_keys:
-            parts = key.split(':')
-            if len(parts) >= 2:
-                namespace = parts[1]
-                namespace_counts[namespace] = namespace_counts.get(namespace, 0) + 1
+            if key.startswith('v1:'):
+                parts = key.split(':')
+                if len(parts) >= 2:
+                    namespace = parts[1]
+                    namespace_counts[namespace] = namespace_counts.get(namespace, 0) + 1
+            elif key.startswith('ratelimit:'):
+                namespace_counts['ratelimit'] = namespace_counts.get('ratelimit', 0) + 1
         
         # Count keys with TTL
         keys_with_ttl = 0
@@ -983,9 +988,7 @@ async def cache_stats_command(client: Client, message: Message):
         
         # Build namespace display
         namespace_display = ""
-        namespace_order = ['media_files', 'users', 'connections', 'active_channels', 'filters', 
-                          'filter_lists', 'search_results', 'rate_limits', 'bot_settings', 'sessions',
-                          'imdb_search', 'imdb_details', 'mdl_search', 'mdl_details', 'user_templates']
+        namespace_order = ['imdb_search', 'imdb_details', 'mdl_search', 'mdl_details', 'user_templates', 'ratelimit']
         
         for ns in namespace_order:
             count = namespace_counts.get(ns, 0)
