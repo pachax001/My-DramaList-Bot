@@ -59,6 +59,8 @@
 - `/broadcast <message>` - ✨ **Enhanced** Mass broadcast to all users (see detailed guide below)
 - `/health` - Check service health status (Redis, MongoDB, etc.)
 - `/cachereload` - Clear all caches and restart cache client
+- `/cache_stats` - 📊 **New** View detailed Redis cache statistics and performance metrics
+- `/cache_analyze` - 🔍 **New** Analyze cache keys, TTL distribution, and memory usage
 - `/restart` - 🔄 **New** Force pull from GitHub and restart bot (see detailed guide below)
 - `/shell` - 🐚 **New** Execute system shell commands (see detailed guide below)
 
@@ -482,6 +484,167 @@ pyrogram         2.0.106
 
 ---
 
+## 📊 **Cache Monitoring Commands** ✨
+
+### **🚀 Advanced Cache Analytics**
+The bot includes powerful cache monitoring commands that provide deep insights into Redis performance and memory usage:
+
+- **✅ Real-Time Statistics**: Live performance metrics and memory usage
+- **✅ Key Analysis**: Distribution of cache keys by namespace and size
+- **✅ TTL Monitoring**: Track keys with and without expiration times
+- **✅ Performance Insights**: Cache hit rates, operations per second, and fragmentation analysis
+- **✅ Memory Optimization**: Identify memory usage patterns and optimization opportunities
+
+### **📊 /cache_stats Command**
+
+Get comprehensive Redis cache statistics including memory usage, performance metrics, and key distribution.
+
+#### **Sample Output:**
+```
+📊 /cache_stats
+
+Memory Usage:
+├ Used: 1.37M
+├ RSS: 18.04M
+├ Peak: 1.58M
+└ Fragmentation: 13.13
+
+Performance:
+├ Hit Rate: 78.40%
+├ Hits: 53,930
+├ Misses: 14,856
+└ Ops/sec: 1
+
+Keys by Type:
+├ media_files: 0
+├ users: 1
+├ connections: 0
+├ active_channels: 0
+├ filters: 0
+├ filter_lists: 0
+├ search_results: 0
+├ rate_limits: 0
+├ bot_settings: 0
+├ sessions: 0
+├ imdb_search: 125
+├ imdb_details: 89
+├ mdl_search: 203
+├ mdl_details: 156
+└ user_templates: 12
+
+Total Keys: 586
+Keys with TTL: 520
+```
+
+#### **Key Metrics Explained:**
+
+| Metric | Description | Optimal Range |
+|--------|-------------|---------------|
+| **Used Memory** | Current Redis memory usage | < 1.5GB |
+| **RSS Memory** | Resident set size (OS memory) | < 2GB |
+| **Peak Memory** | Highest memory usage | Monitor trends |
+| **Fragmentation** | Memory fragmentation ratio | 1.0 - 1.5 |
+| **Hit Rate** | Cache efficiency percentage | > 75% |
+| **Hits/Misses** | Cache request statistics | Monitor ratios |
+| **Ops/sec** | Operations per second | Varies by load |
+
+### **🔍 /cache_analyze Command**
+
+Analyze cache keys for insights into TTL management and memory distribution.
+
+#### **Sample Output:**
+```
+🔍 Cache Analysis
+
+⏰ Keys without TTL: 4
+
+📊 Key Size Distribution:
+├ 1KB - 10KB: 4
+└ < 1KB: 12
+```
+
+#### **Analysis Insights:**
+
+| Insight | Description | Action |
+|---------|-------------|--------|
+| **Keys without TTL** | Keys that never expire | Review if intentional |
+| **Size Distribution** | Memory usage by key size | Optimize large keys |
+| **Large Keys (>100KB)** | Memory-intensive entries | Consider compression |
+| **Small Keys (<1KB)** | Efficient cache entries | Good baseline |
+
+### **🎯 Perfect for Performance Tuning**
+
+#### **Cache Optimization Workflow**
+```bash
+# 1. Check current cache performance
+/cache_stats
+
+# 2. Analyze key distribution and TTL usage
+/cache_analyze
+
+# 3. Clear cache if needed (for testing or issues)
+/cachereload
+
+# 4. Monitor improvement
+/cache_stats
+```
+
+#### **Performance Monitoring Use Cases**
+
+**Memory Management:**
+- Monitor Redis memory usage approaching 2GB limit
+- Identify memory fragmentation issues
+- Track peak usage during high-traffic periods
+
+**Cache Efficiency:**
+- Ensure hit rate stays above 75% for optimal performance
+- Monitor cache misses for frequently requested data
+- Identify opportunities for longer TTL values
+
+**Key Distribution:**
+- Balance between different cache namespaces
+- Monitor growth of specific cache types
+- Identify unused or stale cache categories
+
+**TTL Optimization:**
+- Find keys without expiration (potential memory leaks)
+- Optimize TTL values for different content types
+- Ensure automatic cleanup of temporary data
+
+### **🛡️ Access Control**
+
+- **Owner Only**: Both commands are restricted to bot owner
+- **Safe Operations**: Read-only commands with no side effects
+- **Performance Optimized**: Uses sampling for large datasets
+- **Error Handling**: Graceful fallback when Redis is unavailable
+
+### **📈 Integration with Health Monitoring**
+
+These cache commands work seamlessly with the existing `/health` command:
+
+```bash
+# Comprehensive health check
+/health          # Overall service status
+
+# Deep cache analysis
+/cache_stats     # Detailed cache metrics
+/cache_analyze   # Key distribution analysis
+
+# Cache maintenance
+/cachereload     # Clear and restart if needed
+```
+
+### **⚡ Performance Benefits**
+
+Using these commands helps maintain optimal bot performance:
+
+- **Proactive Monitoring**: Catch issues before they impact users
+- **Memory Optimization**: Prevent Redis memory exhaustion
+- **Cache Tuning**: Optimize TTL values for better hit rates
+- **Debugging Support**: Troubleshoot cache-related performance issues
+
+---
+
 ## 🛠 Template Usage Guide
 
 You can customize how information is displayed by setting a template using placeholders.
@@ -728,6 +891,8 @@ docker-compose up --build -d
 - `/health` - Overall service health status
 - `/userstats` - User statistics and cache performance  
 - `/cachereload` - Clear caches and restart cache client
+- `/cache_stats` - ✨ **New** - Detailed Redis cache statistics and performance metrics
+- `/cache_analyze` - ✨ **New** - Cache key analysis and memory distribution insights
 - `/log` - ✨ **Enhanced** - Smart log file detection and delivery with large file handling
 
 ### **Available Metrics**
@@ -769,6 +934,8 @@ broadcast - Send message to all users (Owner Only)
 log - Get bot log files (Owner Only)
 health - Check service health status (Owner Only)
 cachereload - Clear all caches and restart cache client (Owner Only)
+cache_stats - View detailed Redis cache statistics (Owner Only)
+cache_analyze - Analyze cache keys and performance metrics (Owner Only)
 ```
 
 ---
@@ -1019,6 +1186,8 @@ This project is licensed under the **MIT License**. See the [LICENSE](./LICENSE)
 - **Real-Time Progress Tracking** - Live broadcast monitoring with speed and success metrics
 - **Universal Message Support** - Photos, videos, documents, stickers, locations, contacts, and more
 - **Full HTML Support** - Rich text formatting in broadcast messages
+- **Cache Monitoring Commands** ✨ - `/cache_stats` and `/cache_analyze` for Redis performance insights
+- **Advanced Cache Analytics** - Memory usage, key distribution, TTL analysis, and performance metrics
 - Code optimization and cleanup (removed unused code/imports)
 - Improved log management with smart file detection  
 - Better error handling and fallback mechanisms
