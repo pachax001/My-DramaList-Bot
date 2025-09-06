@@ -921,6 +921,224 @@ async def check_restart_status():
             pass
 
 
+async def cache_stats_command(client: Client, message: Message):
+    """Get Redis cache statistics (Owner only)."""
+    if message.from_user.id != settings.owner_id:
+        await message.reply_text("❌ Only bot owner can view cache statistics.")
+        return
+    
+    try:
+        from infra.cache import cache_client
+        
+        if not cache_client._redis:
+            await message.reply_text(
+                "📊 <b>Cache Statistics</b>\n\n"
+                "❌ Redis is not connected\n"
+                "💾 Using local fallback caching",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        # Get Redis memory info
+        memory_info = await cache_client._redis.info('memory')
+        stats_info = await cache_client._redis.info('stats')
+        keyspace_info = await cache_client._redis.info('keyspace')
+        
+        # Memory stats
+        used_memory = memory_info.get('used_memory_human', 'Unknown')
+        used_memory_rss = memory_info.get('used_memory_rss_human', 'Unknown')
+        used_memory_peak = memory_info.get('used_memory_peak_human', 'Unknown')
+        mem_fragmentation_ratio = memory_info.get('mem_fragmentation_ratio', 0)
+        
+        # Performance stats
+        keyspace_hits = stats_info.get('keyspace_hits', 0)
+        keyspace_misses = stats_info.get('keyspace_misses', 0)
+        instantaneous_ops_per_sec = stats_info.get('instantaneous_ops_per_sec', 0)
+        
+        # Calculate hit rate
+        total_requests = keyspace_hits + keyspace_misses
+        hit_rate = (keyspace_hits / total_requests * 100) if total_requests > 0 else 0
+        
+        # Get key counts by namespace
+        all_keys = await cache_client._redis.keys('v1:*')
+        namespace_counts = {}
+        total_keys = len(all_keys)
+        
+        for key in all_keys:
+            parts = key.split(':')
+            if len(parts) >= 2:
+                namespace = parts[1]
+                namespace_counts[namespace] = namespace_counts.get(namespace, 0) + 1
+        
+        # Count keys with TTL
+        keys_with_ttl = 0
+        for key in all_keys[:50]:  # Sample first 50 keys for performance
+            ttl = await cache_client._redis.ttl(key)
+            if ttl > 0:
+                keys_with_ttl += 1
+        
+        # Estimate total keys with TTL
+        if all_keys:
+            keys_with_ttl = int((keys_with_ttl / min(50, total_keys)) * total_keys) if total_keys > 0 else 0
+        
+        # Build namespace display
+        namespace_display = ""
+        namespace_order = ['media_files', 'users', 'connections', 'active_channels', 'filters', 
+                          'filter_lists', 'search_results', 'rate_limits', 'bot_settings', 'sessions',
+                          'imdb_search', 'imdb_details', 'mdl_search', 'mdl_details', 'user_templates']
+        
+        for ns in namespace_order:
+            count = namespace_counts.get(ns, 0)
+            namespace_display += f"├ {ns}: {count}\n"
+        
+        # Add any additional namespaces not in the predefined list
+        for ns, count in namespace_counts.items():
+            if ns not in namespace_order:
+                namespace_display += f"├ {ns}: {count}\n"
+        
+        # Remove the last ├ and replace with └
+        if namespace_display:
+            namespace_display = namespace_display.rstrip('\n')
+            last_line_idx = namespace_display.rfind('├')
+            if last_line_idx != -1:
+                namespace_display = namespace_display[:last_line_idx] + '└' + namespace_display[last_line_idx + 1:]
+        
+        cache_stats_text = f"""📊 <b>/cache_stats</b>
+
+<b>Memory Usage:</b>
+├ Used: {used_memory}
+├ RSS: {used_memory_rss}
+├ Peak: {used_memory_peak}
+└ Fragmentation: {mem_fragmentation_ratio:.2f}
+
+<b>Performance:</b>
+├ Hit Rate: {hit_rate:.2f}%
+├ Hits: {keyspace_hits:,}
+├ Misses: {keyspace_misses:,}
+└ Ops/sec: {instantaneous_ops_per_sec}
+
+<b>Keys by Type:</b>
+{namespace_display}
+
+<b>Total Keys:</b> {total_keys}
+<b>Keys with TTL:</b> {keys_with_ttl}"""
+        
+        await message.reply_text(cache_stats_text, parse_mode=ParseMode.HTML)
+        
+    except Exception as e:
+        logger.error(f"Error getting cache stats: {e}")
+        await message.reply_text("❌ Failed to get cache statistics.")
+
+
+async def cache_analyze_command(client: Client, message: Message):
+    """Analyze Redis cache for insights (Owner only)."""
+    if message.from_user.id != settings.owner_id:
+        await message.reply_text("❌ Only bot owner can analyze cache.")
+        return
+    
+    try:
+        from infra.cache import cache_client
+        
+        if not cache_client._redis:
+            await message.reply_text(
+                "🔍 <b>Cache Analysis</b>\n\n"
+                "❌ Redis is not connected\n"
+                "💾 Using local fallback caching",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        # Get all keys for analysis
+        all_keys = await cache_client._redis.keys('v1:*')
+        total_keys = len(all_keys)
+        
+        if total_keys == 0:
+            await message.reply_text(
+                "🔍 <b>Cache Analysis</b>\n\n"
+                "📭 No keys found in cache",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        # Analyze keys without TTL
+        keys_without_ttl = 0
+        keys_with_ttl = 0
+        
+        # Size distribution counters
+        size_very_small = 0  # < 1KB
+        size_small = 0      # 1KB - 10KB
+        size_medium = 0     # 10KB - 100KB
+        size_large = 0      # > 100KB
+        
+        # Sample keys for performance (analyze up to 100 keys)
+        sample_keys = all_keys[:100] if len(all_keys) > 100 else all_keys
+        
+        for key in sample_keys:
+            # Check TTL
+            ttl = await cache_client._redis.ttl(key)
+            if ttl == -1:  # No TTL
+                keys_without_ttl += 1
+            else:
+                keys_with_ttl += 1
+            
+            # Check size (get memory usage for this key)
+            try:
+                key_memory = await cache_client._redis.memory_usage(key)
+                if key_memory:
+                    if key_memory < 1024:  # < 1KB
+                        size_very_small += 1
+                    elif key_memory < 10240:  # < 10KB
+                        size_small += 1
+                    elif key_memory < 102400:  # < 100KB
+                        size_medium += 1
+                    else:  # > 100KB
+                        size_large += 1
+            except Exception:
+                # If memory_usage fails, count as very small
+                size_very_small += 1
+        
+        # Extrapolate to total keys if we sampled
+        if len(all_keys) > 100:
+            ratio = total_keys / len(sample_keys)
+            keys_without_ttl = int(keys_without_ttl * ratio)
+            keys_with_ttl = int(keys_with_ttl * ratio)
+            size_very_small = int(size_very_small * ratio)
+            size_small = int(size_small * ratio)
+            size_medium = int(size_medium * ratio)
+            size_large = int(size_large * ratio)
+        
+        # Build size distribution display
+        size_display = ""
+        if size_large > 0:
+            size_display += f"├ > 100KB: {size_large}\n"
+        if size_medium > 0:
+            size_display += f"├ 10KB - 100KB: {size_medium}\n"
+        if size_small > 0:
+            size_display += f"├ 1KB - 10KB: {size_small}\n"
+        if size_very_small > 0:
+            size_display += f"└ < 1KB: {size_very_small}"
+        
+        # Remove trailing newline and fix last connector
+        size_display = size_display.rstrip('\n')
+        if size_display and '└' not in size_display:
+            last_line_idx = size_display.rfind('├')
+            if last_line_idx != -1:
+                size_display = size_display[:last_line_idx] + '└' + size_display[last_line_idx + 1:]
+        
+        analysis_text = f"""🔍 <b>Cache Analysis</b>
+
+⏰ <b>Keys without TTL:</b> {keys_without_ttl}
+
+📊 <b>Key Size Distribution:</b>
+{size_display}"""
+        
+        await message.reply_text(analysis_text, parse_mode=ParseMode.HTML)
+        
+    except Exception as e:
+        logger.error(f"Error analyzing cache: {e}")
+        await message.reply_text("❌ Failed to analyze cache.")
+
+
 async def shell_command(client: Client, message: Message):
     """Execute shell commands via bot (Owner only)."""
     if message.from_user.id != settings.owner_id:

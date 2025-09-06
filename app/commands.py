@@ -60,6 +60,8 @@ class BotCommandManager:
             BotCommand("log", "Get bot log files"),
             BotCommand("health", "Check service health status"),
             BotCommand("cachereload", "Clear all caches and restart cache client"),
+            BotCommand("cache_stats", "View detailed Redis cache statistics"),
+            BotCommand("cache_analyze", "Analyze cache keys and performance metrics"),
             BotCommand("restart", "Force update from GitHub and restart bot"),
             BotCommand("shell", "Execute shell commands (use with extreme caution)"),
         ]
