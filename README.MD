@@ -56,7 +56,8 @@
 - `/userstats` - Get comprehensive bot usage statistics
 - `/log` - Retrieve bot logs
 - `/setpublicmode <on/off>` - Toggle public mode
-- `/broadcast <message>` - ✨ **Enhanced** Mass broadcast to all users (see detailed guide below)
+- `/broadcast <message>` - ✨ **Enhanced** Mass broadcast with preview and confirmation (see detailed guide below)
+- `/stop_broadcast` - 🛑 **New** Stop any active broadcast immediately
 - `/health` - Check service health status (Redis, MongoDB, etc.)
 - `/cachereload` - Clear all caches and restart cache client
 - `/cache_stats` - 📊 **New** View detailed Redis cache statistics and performance metrics
@@ -74,12 +75,14 @@
 ## 📢 **Enhanced Broadcast System** ✨
 
 ### **🚀 Massive Scale Broadcasting**
-The bot supports broadcasting to **thousands or millions** of users efficiently:
+The bot supports broadcasting to **thousands or millions** of users efficiently with advanced preview and control features:
 
+- **✅ Preview & Confirmation**: Shows broadcast preview before sending with confirm/cancel buttons
+- **✅ Stop Control**: Use `/stop_broadcast` to immediately stop active broadcasts
 - **✅ Batch Processing**: Handles users in rate-limit friendly batches
 - **✅ Concurrent Sending**: Parallel message delivery within batches  
 - **✅ Memory Efficient**: Uses MongoDB cursor for large user bases
-- **✅ Real-time Progress**: Live updates during broadcast process
+- **✅ Real-time Progress**: Live updates during broadcast process with broadcast ID tracking
 - **✅ Performance**: ~1,800 messages/hour respecting Telegram limits
 
 ### **📱 Supported Message Types**
@@ -117,6 +120,68 @@ The bot supports broadcasting to **thousands or millions** of users efficiently:
 2. Reply to it with `/broadcast`
 3. Bot broadcasts that exact message type to all users
 
+### **🔍 Broadcast Preview & Control** ✨
+
+#### **📋 Preview System**
+Before any broadcast starts, you get a detailed preview:
+
+```
+📢 Broadcast Preview
+
+👥 Target Users: 45,230
+📄 Message Type: Text
+
+📝 Message Content:
+Hello <b>users</b>! This is a <i>test</i> broadcast with HTML formatting.
+
+🆔 Broadcast ID: abc12345
+⚠️ Confirm to start broadcasting or cancel to abort.
+```
+
+**Confirmation Buttons:**
+- ✅ **Confirm Broadcast** - Starts the broadcast immediately
+- ❌ **Cancel** - Cancels the broadcast operation
+
+#### **🛑 Stop Active Broadcasts**
+You can stop any running broadcast instantly:
+
+```
+/stop_broadcast
+```
+
+**Response when broadcasts are active:**
+```
+🛑 Broadcast Stop Requested
+
+📢 Stopped 1 active broadcast
+
+⏳ Broadcasts will stop after completing current batch.
+📊 Progress updates will show final statistics.
+```
+
+**Response when no broadcasts are active:**
+```
+ℹ️ No Active Broadcasts
+
+There are currently no running broadcasts to stop.
+```
+
+#### **🆔 Broadcast ID Tracking**
+Each broadcast gets a unique 8-character ID for tracking:
+
+```
+📢 Broadcasting...
+👥 Total Users: 45,230
+📊 Progress: 67.8%
+📤 Sent: 30,645
+❌ Failed: 234
+⏱️ Speed: 28.5 msgs/sec
+⏰ Elapsed: 1,076s
+🆔 ID: abc12345
+
+Use /stop_broadcast to cancel
+```
+
 ### **📊 Real-Time Progress Tracking**
 
 During broadcast, you'll see live updates:
@@ -152,11 +217,15 @@ During broadcast, you'll see live updates:
 
 ### **🛡️ Safety Features**
 
-- **Owner Only**: Only bot owner can use broadcast
-- **Rate Limited**: Respects Telegram's API limits
+- **Owner Only**: Only bot owner can use broadcast commands
+- **Preview & Confirmation**: All broadcasts require manual confirmation before starting
+- **Instant Stop Control**: Use `/stop_broadcast` to immediately halt any active broadcast
+- **Unique ID Tracking**: Each broadcast gets a unique ID for monitoring and control
+- **Rate Limited**: Respects Telegram's API limits (~30 msgs/sec)
 - **Error Resistant**: Failed sends don't crash the process
 - **Memory Efficient**: Handles millions of users without memory issues
-- **Detailed Logging**: All broadcast activities are logged for monitoring
+- **Detailed Logging**: All broadcast activities are logged with IDs for monitoring
+- **Graceful Stopping**: Broadcasts stop cleanly after completing current batch
 
 ### **❌ Limitations**
 - **Polls**: Cannot be broadcasted (Telegram API limitation)

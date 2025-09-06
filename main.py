@@ -31,7 +31,7 @@ from app.commands import BotCommandManager
 
 # Handlers (new architecture)
 from adapters.telegram.handlers.auth_handlers import authorize_cmd, unauthorize_cmd, list_users_cmd
-from adapters.telegram.handlers.basic_handlers import start_command, send_log, help_command, user_stats_command, set_public_mode_command, manual_broadcast_command, cache_reload_command, cache_stats_command, cache_analyze_command, restart_bot_command, check_restart_status, shell_command
+from adapters.telegram.handlers.basic_handlers import start_command, send_log, help_command, user_stats_command, set_public_mode_command, manual_broadcast_command, broadcast_callback_handler, stop_broadcast_command, cache_reload_command, cache_stats_command, cache_analyze_command, restart_bot_command, check_restart_status, shell_command
 from adapters.telegram.handlers.search_handlers import (search_dramas_command, drama_details_callback, close_search_results,
     search_imdb, imdb_details_callback, handle_drama_url, handle_imdb_url)
 from adapters.telegram.handlers.template_handlers import (set_template_command, get_template_command, remove_template_command, preview_template_command,
@@ -153,6 +153,8 @@ class HighPerformanceBot:
         self.app.add_handler(MessageHandler(user_stats_command, filters.command("userstats") & filters.user(settings.owner_id)))
         self.app.add_handler(MessageHandler(set_public_mode_command, filters.command("setpublicmode") & filters.user(settings.owner_id)))
         self.app.add_handler(MessageHandler(manual_broadcast_command, filters.command("broadcast") & filters.user(settings.owner_id)))
+        self.app.add_handler(MessageHandler(stop_broadcast_command, filters.command("stop_broadcast") & filters.user(settings.owner_id)))
+        self.app.add_handler(CallbackQueryHandler(broadcast_callback_handler, filters.regex("^broadcast_(confirm|cancel)_")))
         self.app.add_handler(MessageHandler(cache_reload_command, filters.command("cachereload") & filters.user(settings.owner_id)))
         self.app.add_handler(MessageHandler(cache_stats_command, filters.command("cache_stats") & filters.user(settings.owner_id)))
         self.app.add_handler(MessageHandler(cache_analyze_command, filters.command("cache_analyze") & filters.user(settings.owner_id)))

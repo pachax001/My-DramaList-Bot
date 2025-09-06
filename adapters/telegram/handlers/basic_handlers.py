@@ -8,13 +8,17 @@ import json
 import re
 from datetime import datetime
 from pyrogram import Client
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.enums import ParseMode
+from pyrogram import filters
 from infra.config import settings
 from infra.logging import get_logger
 from infra.db import mongo_client
 
 logger = get_logger(__name__)
+
+# Global variable to track active broadcasts
+active_broadcasts = {}
 
 
 async def start_command(client: Client, message: Message):
@@ -378,7 +382,7 @@ async def cache_reload_command(client: Client, message: Message):
 
 
 async def manual_broadcast_command(client: Client, message: Message):
-    """Enhanced broadcast supporting all message types with batch processing for millions of users."""
+    """Enhanced broadcast with preview, confirmation, and HTML formatting support."""
     if message.from_user.id != settings.owner_id:
         await message.reply_text("❌ Only bot owner can broadcast messages.")
         return
@@ -486,7 +490,8 @@ async def manual_broadcast_command(client: Client, message: Message):
                 "• 📍 Locations\n"
                 "• 👤 Contacts\n\n"
                 "<b>HTML Tags Supported:</b>\n"
-                "<code>&lt;b&gt;bold&lt;/b&gt;</code>, <code>&lt;i&gt;italic&lt;/i&gt;</code>, <code>&lt;u&gt;underline&lt;/u&gt;</code>, <code>&lt;s&gt;strikethrough&lt;/s&gt;</code>, <code>&lt;code&gt;code&lt;/code&gt;</code>, <code>&lt;pre&gt;preformatted&lt;/pre&gt;</code>, <code>&lt;a href='url'&gt;link&lt;/a&gt;</code>",
+                "<code>&lt;b&gt;bold&lt;/b&gt;</code>, <code>&lt;i&gt;italic&lt;/i&gt;</code>, <code>&lt;u&gt;underline&lt;/u&gt;</code>, <code>&lt;s&gt;strikethrough&lt;/s&gt;</code>, <code>&lt;code&gt;code&lt;/code&gt;</code>, <code>&lt;pre&gt;preformatted&lt;/pre&gt;</code>, <code>&lt;a href='url'&gt;link&lt;/a&gt;</code>\n\n"
+                "Use <code>/stop_broadcast</code> to stop any active broadcast.",
                 parse_mode=ParseMode.HTML
             )
             return
@@ -498,28 +503,129 @@ async def manual_broadcast_command(client: Client, message: Message):
         }
     
     try:
-        # Get total user count first for progress tracking
+        # Get total user count
         total_users = await mongo_client.db.users.count_documents({})
         
         if total_users == 0:
             await message.reply_text("❌ No users to broadcast to.")
             return
         
-        # Start broadcast with progress tracking
-        broadcast_msg = await message.reply_text(
+        # Generate unique broadcast ID
+        import uuid
+        broadcast_id = str(uuid.uuid4())[:8]
+        
+        # Store broadcast data for confirmation
+        active_broadcasts[broadcast_id] = {
+            'content': broadcast_content,
+            'total_users': total_users,
+            'owner_id': message.from_user.id,
+            'chat_id': message.chat.id,
+            'created_at': datetime.now()
+        }
+        
+        # Create preview message
+        preview_text = "📢 <b>Broadcast Preview</b>\n\n"
+        preview_text += f"👥 <b>Target Users:</b> {total_users:,}\n"
+        preview_text += f"📄 <b>Message Type:</b> {broadcast_content['type'].title()}\n\n"
+        
+        if broadcast_content['type'] == 'text':
+            preview_text += f"📝 <b>Message Content:</b>\n{broadcast_content['text'][:500]}"
+            if len(broadcast_content['text']) > 500:
+                preview_text += "..."
+        else:
+            preview_text += f"📎 <b>Media Type:</b> {broadcast_content['type'].title()}\n"
+            if broadcast_content.get('caption'):
+                preview_text += f"📝 <b>Caption:</b>\n{broadcast_content['caption'][:300]}"
+                if len(broadcast_content['caption']) > 300:
+                    preview_text += "..."
+        
+        preview_text += f"\n\n🆔 <b>Broadcast ID:</b> <code>{broadcast_id}</code>\n"
+        preview_text += "⚠️ <b>Confirm to start broadcasting or cancel to abort.</b>"
+        
+        # Create confirmation buttons
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("✅ Confirm Broadcast", callback_data=f"broadcast_confirm_{broadcast_id}"),
+                InlineKeyboardButton("❌ Cancel", callback_data=f"broadcast_cancel_{broadcast_id}")
+            ]
+        ])
+        
+        await message.reply_text(preview_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+        
+    except Exception as e:
+        logger.error(f"Error in broadcast preview: {e}")
+        await message.reply_text("❌ Failed to create broadcast preview.")
+
+
+async def broadcast_callback_handler(client: Client, callback_query: CallbackQuery):
+    """Handle broadcast confirmation/cancellation callbacks."""
+    if callback_query.from_user.id != settings.owner_id:
+        await callback_query.answer("❌ Only bot owner can control broadcasts.", show_alert=True)
+        return
+    
+    callback_data = callback_query.data
+    
+    if callback_data.startswith("broadcast_confirm_"):
+        broadcast_id = callback_data.split("_", 2)[2]
+        
+        if broadcast_id not in active_broadcasts:
+            await callback_query.answer("❌ Broadcast session expired.", show_alert=True)
+            return
+        
+        broadcast_data = active_broadcasts[broadcast_id]
+        broadcast_content = broadcast_data['content']
+        total_users = broadcast_data['total_users']
+        
+        # Update message to show broadcast is starting
+        await callback_query.edit_message_text(
             f"📢 <b>Starting Broadcast</b>\n"
             f"👥 Total Users: {total_users:,}\n"
             f"📊 Progress: 0%\n"
             f"📤 Sent: 0\n"
             f"❌ Failed: 0\n"
-            f"⏱️ Speed: 0 msgs/sec",
+            f"⏱️ Speed: 0 msgs/sec\n"
+            f"🆔 ID: <code>{broadcast_id}</code>",
             parse_mode=ParseMode.HTML
         )
         
-        # Batch processing for efficiency
+        # Store active broadcast for stopping capability
+        active_broadcasts[broadcast_id].update({
+            'status': 'running',
+            'message_id': callback_query.message.id,
+            'stop_requested': False
+        })
+        
+        # Start broadcast
+        await execute_broadcast(client, broadcast_id, callback_query.message)
+    
+    elif callback_data.startswith("broadcast_cancel_"):
+        broadcast_id = callback_data.split("_", 2)[2]
+        
+        # Remove from active broadcasts
+        if broadcast_id in active_broadcasts:
+            del active_broadcasts[broadcast_id]
+        
+        await callback_query.edit_message_text(
+            "❌ <b>Broadcast Cancelled</b>\n\n"
+            "The broadcast operation has been cancelled.",
+            parse_mode=ParseMode.HTML
+        )
+        
+    await callback_query.answer()
+
+
+async def execute_broadcast(client: Client, broadcast_id: str, status_message: Message):
+    """Execute the actual broadcast with progress tracking."""
+    broadcast_data = active_broadcasts.get(broadcast_id)
+    if not broadcast_data:
+        return
+    
+    broadcast_content = broadcast_data['content']
+    total_users = broadcast_data['total_users']
+    
+    try:
         import asyncio
         import time
-        from datetime import datetime
         
         start_time = time.time()
         sent = 0
@@ -533,6 +639,10 @@ async def manual_broadcast_command(client: Client, message: Message):
         
         async def send_to_user(user_id: int) -> bool:
             """Send message to individual user."""
+            # Check if stop was requested
+            if broadcast_data.get('stop_requested', False):
+                return False
+                
             try:
                 if broadcast_content['type'] == 'text':
                     await client.send_message(
@@ -610,6 +720,10 @@ async def manual_broadcast_command(client: Client, message: Message):
                 return False
         
         async for user_doc in cursor:
+            # Check if stop was requested
+            if broadcast_data.get('stop_requested', False):
+                break
+                
             user_batch.append(user_doc['user_id'])
             
             # Process batch when it reaches batch_size
@@ -627,6 +741,10 @@ async def manual_broadcast_command(client: Client, message: Message):
                 
                 user_batch = []
                 
+                # Check if stop was requested after batch processing
+                if broadcast_data.get('stop_requested', False):
+                    break
+                
                 # Update progress periodically
                 if (sent + failed) % update_interval == 0 or (sent + failed) == total_users:
                     elapsed = time.time() - start_time
@@ -634,14 +752,16 @@ async def manual_broadcast_command(client: Client, message: Message):
                     progress = ((sent + failed) / total_users) * 100
                     
                     try:
-                        await broadcast_msg.edit_text(
+                        await status_message.edit_text(
                             f"📢 <b>Broadcasting...</b>\n"
                             f"👥 Total Users: {total_users:,}\n"
                             f"📊 Progress: {progress:.1f}%\n"
                             f"📤 Sent: {sent:,}\n"
                             f"❌ Failed: {failed:,}\n"
                             f"⏱️ Speed: {speed:.1f} msgs/sec\n"
-                            f"⏰ Elapsed: {elapsed:.0f}s",
+                            f"⏰ Elapsed: {elapsed:.0f}s\n"
+                            f"🆔 ID: <code>{broadcast_id}</code>\n\n"
+                            f"Use /stop_broadcast to cancel",
                             parse_mode=ParseMode.HTML
                         )
                     except Exception:
@@ -651,7 +771,7 @@ async def manual_broadcast_command(client: Client, message: Message):
                 await asyncio.sleep(1)  # 1 second between batches
         
         # Process remaining users in the last batch
-        if user_batch:
+        if user_batch and not broadcast_data.get('stop_requested', False):
             tasks = [send_to_user(uid) for uid in user_batch]
             results = await asyncio.gather(*tasks, return_exceptions=True)
             
@@ -661,26 +781,100 @@ async def manual_broadcast_command(client: Client, message: Message):
                 else:
                     failed += 1
         
-        # Final summary
-        total_time = time.time() - start_time
-        success_rate = (sent / total_users) * 100 if total_users > 0 else 0
+        # Check if broadcast was stopped
+        if broadcast_data.get('stop_requested', False):
+            final_message = (
+                f"🛑 <b>Broadcast Stopped!</b>\n"
+                f"👥 Total Users: {total_users:,}\n"
+                f"📤 Successfully Sent: {sent:,}\n"
+                f"❌ Failed: {failed:,}\n"
+                f"🛑 Remaining: {total_users - sent - failed:,}\n"
+                f"📊 Completion: {((sent + failed) / total_users * 100):.1f}%\n"
+                f"⏰ Time: {time.time() - start_time:.0f}s\n"
+                f"🆔 ID: <code>{broadcast_id}</code>"
+            )
+        else:
+            # Final summary for completed broadcast
+            total_time = time.time() - start_time
+            success_rate = (sent / total_users) * 100 if total_users > 0 else 0
+            
+            final_message = (
+                f"✅ <b>Broadcast Completed!</b>\n"
+                f"👥 Total Users: {total_users:,}\n"
+                f"📤 Successfully Sent: {sent:,}\n"
+                f"❌ Failed: {failed:,}\n"
+                f"📊 Success Rate: {success_rate:.1f}%\n"
+                f"⏰ Total Time: {total_time:.0f}s\n"
+                f"⚡ Average Speed: {total_users/total_time:.1f} msgs/sec\n"
+                f"🆔 ID: <code>{broadcast_id}</code>"
+            )
         
-        final_message = (
-            f"✅ <b>Broadcast Completed!</b>\n"
-            f"👥 Total Users: {total_users:,}\n"
-            f"📤 Successfully Sent: {sent:,}\n"
-            f"❌ Failed: {failed:,}\n"
-            f"📊 Success Rate: {success_rate:.1f}%\n"
-            f"⏰ Total Time: {total_time:.0f}s\n"
-            f"⚡ Average Speed: {total_users/total_time:.1f} msgs/sec"
-        )
+        await status_message.edit_text(final_message, parse_mode=ParseMode.HTML)
+        logger.info(f"Broadcast {broadcast_id}: {sent} sent, {failed} failed out of {total_users} users")
         
-        await broadcast_msg.edit_text(final_message, parse_mode=ParseMode.HTML)
-        logger.info(f"Broadcast completed: {sent} sent, {failed} failed out of {total_users} users")
+        # Clean up active broadcast
+        if broadcast_id in active_broadcasts:
+            del active_broadcasts[broadcast_id]
         
     except Exception as e:
-        logger.error(f"Error in broadcast: {e}")
-        await message.reply_text("❌ Broadcast failed due to an error.")
+        logger.error(f"Error in broadcast execution: {e}")
+        try:
+            await status_message.edit_text(
+                f"❌ <b>Broadcast Failed!</b>\n\n"
+                f"🆔 ID: <code>{broadcast_id}</code>\n"
+                f"📤 Sent: {sent:,}\n"
+                f"❌ Failed: {failed:,}\n"
+                f"🚫 Error: {str(e)}",
+                parse_mode=ParseMode.HTML
+            )
+        except:
+            pass
+        
+        # Clean up active broadcast
+        if broadcast_id in active_broadcasts:
+            del active_broadcasts[broadcast_id]
+
+
+async def stop_broadcast_command(client: Client, message: Message):
+    """Stop any active broadcast (Owner only)."""
+    if message.from_user.id != settings.owner_id:
+        await message.reply_text("❌ Only bot owner can stop broadcasts.")
+        return
+    
+    # Check for active broadcasts
+    running_broadcasts = [bid for bid, data in active_broadcasts.items() 
+                         if data.get('status') == 'running']
+    
+    if not running_broadcasts:
+        await message.reply_text(
+            "ℹ️ <b>No Active Broadcasts</b>\n\n"
+            "There are currently no running broadcasts to stop.",
+            parse_mode=ParseMode.HTML
+        )
+        return
+    
+    # Stop all active broadcasts
+    stopped_count = 0
+    for broadcast_id in running_broadcasts:
+        if broadcast_id in active_broadcasts:
+            active_broadcasts[broadcast_id]['stop_requested'] = True
+            stopped_count += 1
+    
+    if stopped_count > 0:
+        await message.reply_text(
+            f"🛑 <b>Broadcast Stop Requested</b>\n\n"
+            f"📢 Stopped {stopped_count} active broadcast{'s' if stopped_count != 1 else ''}\n\n"
+            f"⏳ Broadcasts will stop after completing current batch.\n"
+            f"📊 Progress updates will show final statistics.",
+            parse_mode=ParseMode.HTML
+        )
+        logger.info(f"Broadcast stop requested by owner for {stopped_count} broadcasts")
+    else:
+        await message.reply_text(
+            "❌ <b>Failed to Stop Broadcasts</b>\n\n"
+            "Could not find active broadcasts to stop.",
+            parse_mode=ParseMode.HTML
+        )
 
 
 async def restart_bot_command(client: Client, message: Message):
