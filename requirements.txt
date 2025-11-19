@@ -10,3 +10,4 @@ imdbinfo
 motor
 certifi
 uvloop; sys_platform != "win32"
+requests
