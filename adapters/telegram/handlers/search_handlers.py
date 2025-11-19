@@ -6,14 +6,15 @@ import uuid
 from pyrogram import Client
 from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ParseMode
-
+from pyrogram.errors import WebpageMediaEmpty
 from adapters.imdb import imdb_adapter
 from adapters.mydramalist import mydramalist_adapter
 from domain.services import template_service
 from infra.db import mongo_client
 from infra.logging import get_logger, set_correlation_id
 from infra.ratelimit import user_limiter
-
+import os
+import requests
 logger = get_logger(__name__)
 
 
@@ -167,18 +168,41 @@ async def _process_mdl_url_direct(client: Client, message: Message, url: str, us
         
         # Send details with or without poster
         if poster_url and poster_url.strip():
+            try:
             # Delete processing message first
-            await processing_msg.delete()
-            # Send as photo with caption
-            await message.reply_photo(
-                photo=poster_url,
-                caption=caption,
-                reply_markup=markup,
-                parse_mode=ParseMode.HTML
-            )
+                await processing_msg.delete()
+                # Send as photo with caption
+                await message.reply_photo(
+                    photo=poster_url,
+                    caption=caption,
+                    reply_markup=markup,
+                    parse_mode=ParseMode.HTML
+                )
+            except WebpageMediaEmpty:
+                try:
+                    await processing_msg.delete()
+                    img_path = f"temp_poster_{user_id}_{slug.replace("-", "_")}.jpg"
+                    r = requests.get(poster_url, timeout=10)
+                    if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
+                        with open(img_path, "wb") as f:
+                            f.write(r.content)
+                    await message.reply_photo(
+                        photo=img_path,
+                        caption=caption,
+                        reply_markup=markup,
+                        parse_mode=ParseMode.HTML
+                    )
+
+                    # --- Remove file ---
+                    os.remove(img_path)
+                except Exception as e:
+                    logger.error(f"Error in poster URL: {e}")
+                    await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
+
         else:
             # Edit processing message to show details
             await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
+
         
     except Exception as e:
         logger.error(f"Error in MDL URL processing with /mdl: {e}")
@@ -359,14 +383,40 @@ async def drama_details_callback(client: Client, callback_query: CallbackQuery) 
         
         # Send details with or without poster
         if poster_url and poster_url.strip():
-            # Send as photo with caption
-            await client.send_photo(
-                chat_id=callback_query.message.chat.id,
-                photo=poster_url,
-                caption=caption,
-                reply_markup=markup,
-                parse_mode=ParseMode.HTML
-            )
+            try:
+                # Send as photo with caption
+                await client.send_photo(
+                    chat_id=callback_query.message.chat.id,
+                    photo=poster_url,
+                    caption=caption,
+                    reply_markup=markup,
+                    parse_mode=ParseMode.HTML
+                )
+            except WebpageMediaEmpty:
+                try:
+                    img_path = f"temp_poster_{user_id}_{slug.replace("-", "_")}.jpg"
+                    r = requests.get(poster_url, timeout=10)
+                    if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
+                        with open(img_path, "wb") as f:
+                            f.write(r.content)
+                    await client.send_photo(
+                        chat_id=callback_query.message.chat.id,
+                        photo=img_path,
+                        caption=caption,
+                        reply_markup=markup,
+                        parse_mode=ParseMode.HTML
+                    )
+
+                    # --- Remove file ---
+                    os.remove(img_path)
+                except Exception as e:
+                    logger.warning(f"Failed to send poster photo to {poster_url}: {e}")
+                    await client.send_message(
+                        chat_id=callback_query.message.chat.id,
+                        text=caption,
+                        reply_markup=markup,
+                        parse_mode=ParseMode.HTML
+                    )
         else:
             # Send as text message
             await client.send_message(
@@ -375,7 +425,7 @@ async def drama_details_callback(client: Client, callback_query: CallbackQuery) 
                 reply_markup=markup,
                 parse_mode=ParseMode.HTML
             )
-        
+
         # Delete original message
         await callback_query.message.delete()
         await callback_query.answer()
@@ -536,15 +586,39 @@ async def handle_drama_url(client: Client, message: Message) -> None:
         
         # Send details with or without poster
         if poster_url and poster_url.strip():
+            try:
             # Delete processing message first
-            await processing_msg.delete()
-            # Send as photo with caption
-            await message.reply_photo(
-                photo=poster_url,
-                caption=caption,
-                reply_markup=markup,
-                parse_mode=ParseMode.HTML
-            )
+                await processing_msg.delete()
+                # Send as photo with caption
+                await message.reply_photo(
+                    photo=poster_url,
+                    caption=caption,
+                    reply_markup=markup,
+                    parse_mode=ParseMode.HTML
+                )
+            except WebpageMediaEmpty:
+                try:
+                    await processing_msg.delete()
+                    img_path = f"temp_poster_{user_id}_{slug.replace("-","_")}.jpg"
+                    r = requests.get(poster_url, timeout=10)
+                    if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
+                        with open(img_path, "wb") as f:
+                            f.write(r.content)
+                    await message.reply_photo(
+                        photo=img_path,
+                        caption=caption,
+                        reply_markup=markup,
+                        parse_mode=ParseMode.HTML
+                    )
+
+                    # --- Remove file ---
+                    os.remove(img_path)
+                except Exception as e:
+                    logger.warning(f"Failed to send poster photo to {poster_url}: {e}")
+                    await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
+
+
+
         else:
             # Edit processing message to show details
             await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
