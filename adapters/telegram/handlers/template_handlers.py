@@ -3,6 +3,8 @@
 from pyrogram import Client
 from pyrogram.types import Message
 from pyrogram.enums import ParseMode
+
+from infra.config import settings
 from infra.logging import get_logger
 from infra.db import mongo_client
 from infra.cache import cache_client
@@ -12,7 +14,25 @@ logger = get_logger(__name__)
 
 async def set_template_command(client: Client, message: Message):
     """Set MyDramaList template for user."""
+    OWNER_ID = settings.owner_id
     user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     # Get template from message
     if message.reply_to_message and message.reply_to_message.text:
@@ -65,7 +85,25 @@ async def set_template_command(client: Client, message: Message):
 
 async def get_template_command(client: Client, message: Message):
     """Get user's MyDramaList template."""
+    OWNER_ID = settings.owner_id
     user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     try:
         # Try cache first
@@ -91,7 +129,25 @@ async def get_template_command(client: Client, message: Message):
 
 async def remove_template_command(client: Client, message: Message):
     """Remove user's MyDramaList template."""
+    OWNER_ID = settings.owner_id
     user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     try:
         result = await mongo_client.db.mdl_templates.delete_one({"user_id": user_id})
@@ -112,7 +168,25 @@ async def remove_template_command(client: Client, message: Message):
 
 async def preview_template_command(client: Client, message: Message):
     """Preview user's MyDramaList template."""
+    OWNER_ID = settings.owner_id
     user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     try:
         # Try cache first
@@ -175,7 +249,25 @@ async def preview_template_command(client: Client, message: Message):
 # IMDB Template handlers
 async def set_imdb_template_command(client: Client, message: Message):
     """Set IMDB template for user."""
+    OWNER_ID = settings.owner_id
     user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     # Get template from message
     if message.reply_to_message and message.reply_to_message.text:
@@ -229,7 +321,25 @@ async def set_imdb_template_command(client: Client, message: Message):
 
 async def get_imdb_template_command(client: Client, message: Message):
     """Get user's IMDB template."""
+    OWNER_ID = settings.owner_id
     user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     try:
         # Try cache first
@@ -255,7 +365,25 @@ async def get_imdb_template_command(client: Client, message: Message):
 
 async def remove_imdb_template_command(client: Client, message: Message):
     """Remove user's IMDB template."""
+    OWNER_ID = settings.owner_id
     user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     try:
         result = await mongo_client.db.imdb_templates.delete_one({"user_id": user_id})
@@ -276,7 +404,25 @@ async def remove_imdb_template_command(client: Client, message: Message):
 
 async def preview_imdb_template_command(client: Client, message: Message):
     """Preview user's IMDB template."""
+    OWNER_ID = settings.owner_id
     user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     try:
         # Try cache first
@@ -349,6 +495,25 @@ async def preview_imdb_template_command(client: Client, message: Message):
 
 async def mdl_placeholders_command(client: Client, message: Message):
     """Show all available MyDramaList placeholders."""
+    OWNER_ID = settings.owner_id
+    user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     placeholders_text = """
 📋 <b>MyDramaList Template Placeholders</b>
 
@@ -408,6 +573,25 @@ async def mdl_placeholders_command(client: Client, message: Message):
 
 async def imdb_placeholders_command(client: Client, message: Message):
     """Show all available IMDB placeholders."""
+    OWNER_ID = settings.owner_id
+    user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     placeholders_text = """
 📋 <b>IMDB Template Placeholders</b>
 

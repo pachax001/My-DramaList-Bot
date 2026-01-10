@@ -51,15 +51,25 @@ async def search_dramas_command(client: Client, message: Message) -> None:
         return
     
     # Check authorization (simplified)
-    public_setting = await mongo_client.db.settings.find_one({"key": "public_mode"})
-    is_public = public_setting.get("value", True) if public_setting else True
-    
-    if not is_public:
-        # Check if user is authorized
-        auth_user = await mongo_client.db.authorized_users.find_one({"user_id": user_id})
-        if not auth_user:
-            await message.reply_text("❌ You are not authorized to use this bot.")
-            return
+    OWNER_ID = settings.owner_id
+    #user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     query_or_url = None
     
@@ -222,14 +232,25 @@ async def search_imdb(client: Client, message: Message) -> None:
         return
     
     # Check authorization (simplified)
-    public_setting = await mongo_client.db.settings.find_one({"key": "public_mode"})
-    is_public = public_setting.get("value", True) if public_setting else True
-    
-    if not is_public:
-        auth_user = await mongo_client.db.authorized_users.find_one({"user_id": user_id})
-        if not auth_user:
-            await message.reply_text("❌ You are not authorized to use this bot.")
-            return
+    OWNER_ID = settings.owner_id
+    #user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     query_or_url = None
     
@@ -516,15 +537,25 @@ async def handle_drama_url(client: Client, message: Message) -> None:
         return
     
     # Check authorization (simplified)
-    public_setting = await mongo_client.db.settings.find_one({"key": "public_mode"})
-    is_public = public_setting.get("value", True) if public_setting else True
-    
-    if not is_public:
-        # Check if user is authorized
-        auth_user = await mongo_client.db.authorized_users.find_one({"user_id": user_id})
-        if not auth_user:
-            await message.reply_text("❌ You are not authorized to use this bot.")
-            return
+    OWNER_ID = settings.owner_id
+    #user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     url = None
     
@@ -641,14 +672,25 @@ async def handle_imdb_url(client: Client, message: Message) -> None:
         return
     
     # Check authorization (simplified)
-    public_setting = await mongo_client.db.settings.find_one({"key": "public_mode"})
-    is_public = public_setting.get("value", True) if public_setting else True
-    
-    if not is_public:
-        auth_user = await mongo_client.db.authorized_users.find_one({"user_id": user_id})
-        if not auth_user:
-            await message.reply_text("❌ You are not authorized to use this bot.")
-            return
+    OWNER_ID = settings.owner_id
+    #user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        # 2. Check public mode
+        public_setting = await mongo_client.db.settings.find_one(
+            {"key": "public_mode"}
+        )
+        is_public = public_setting.get("value", True) if public_setting else True
+
+        if not is_public:
+            # 3. Check authorized users
+            auth_user = await mongo_client.db.authorized_users.find_one(
+                {"user_id": user_id}
+            )
+            if not auth_user:
+                await message.reply_text(
+                    "❌ You are not authorized to use this bot."
+                )
+                return
     
     url = None
     
