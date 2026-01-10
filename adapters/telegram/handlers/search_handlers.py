@@ -13,6 +13,7 @@ from domain.services import template_service
 from infra.db import mongo_client
 from infra.logging import get_logger, set_correlation_id
 from infra.ratelimit import user_limiter
+from infra.config import settings
 import os
 import requests
 logger = get_logger(__name__)
