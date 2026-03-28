@@ -4,27 +4,75 @@ from typing import Dict, List, Optional, Any
 import html
 import re
 import asyncio
+import inspect
+from importlib.metadata import PackageNotFoundError, version as package_version
 from concurrent.futures import ThreadPoolExecutor
 from infra.logging import get_logger, log_performance
 from infra.cache import cache_client
 import time
 
+logger = get_logger(__name__)
+
+search_title = None
+get_movie = None
+set_locale = None
+TitleType = None
+SUPPORTS_TITLE_FILTER = False
+IMDBINFO_VERSION = None
+
+try:
+    IMDBINFO_VERSION = package_version("imdbinfo")
+except PackageNotFoundError:
+    IMDBINFO_VERSION = None
+
 try:
     from imdbinfo import search_title, get_movie
-    from imdbinfo.locale import set_locale
-    # Set default locale to English
-    set_locale("en")
+    SUPPORTS_TITLE_FILTER = "title_type" in inspect.signature(search_title).parameters
 except ImportError as e:
-    logger = get_logger(__name__)
     logger.error(f"imdbinfo library not available: {e}")
-    search_title = None
-    get_movie = None
 
-logger = get_logger(__name__)
+try:
+    from imdbinfo.locale import set_locale
+except ImportError:
+    set_locale = None
+
+try:
+    from imdbinfo.services import TitleType
+except ImportError:
+    TitleType = None
+
+if set_locale:
+    try:
+        set_locale("en")
+    except Exception as e:
+        logger.warning(f"Failed to set imdbinfo locale to English: {e}")
+
+if IMDBINFO_VERSION:
+    logger.info(f"Using imdbinfo version {IMDBINFO_VERSION}")
 
 
 class IMDBAdapter:
     """Async IMDB client using imdbinfo."""
+
+    NOISY_SEARCH_SUFFIX_TERMS = frozenset({
+        "behind",
+        "breakdown",
+        "concert",
+        "deep",
+        "discussion",
+        "dive",
+        "explained",
+        "live",
+        "podcap",
+        "podcast",
+        "recap",
+        "review",
+        "reviews",
+        "rewatch",
+        "roblox",
+        "special",
+        "watchalong",
+    })
     
     def __init__(self) -> None:
         self.executor = ThreadPoolExecutor(max_workers=5)  # Limit concurrent IMDB requests
@@ -116,16 +164,38 @@ class IMDBAdapter:
                 logger.error("imdbinfo library not available")
                 return []
             
-            # Search for titles using imdbinfo
-            results = search_title(query)
+            search_kwargs = {}
+            if SUPPORTS_TITLE_FILTER and TitleType is not None:
+                search_kwargs["title_type"] = (
+                    TitleType.Movies,
+                    TitleType.Series,
+                    TitleType.TvMovie,
+                )
             
-            if not results or not hasattr(results, 'titles'):
+            # Search for titles using imdbinfo
+            results = search_title(query, **search_kwargs)
+            
+            if results is None:
+                logger.warning(
+                    f"imdbinfo returned None for search query '{query}' (version={IMDBINFO_VERSION or 'unknown'})"
+                )
+                return []
+
+            if not hasattr(results, 'titles'):
+                logger.warning(
+                    f"imdbinfo returned unexpected search result type '{type(results).__name__}' for query '{query}'"
+                )
+                return []
+
+            if not results.titles:
                 logger.info(f"No IMDB results found for query: {query}")
                 return []
             
+            ranked_results = self._rank_search_results(query, list(results.titles or []))
+            
             # Transform results to our format
             movies = []
-            for movie in results.titles[:20]:  # Limit to first 20 results
+            for movie in ranked_results[:20]:
                 try:
                     # Clean IMDB ID (remove 'tt' prefix if present)
                     imdb_id = movie.imdb_id
@@ -148,6 +218,55 @@ class IMDBAdapter:
         except Exception as e:
             logger.error(f"IMDB search error for '{query}': {e}")
             return []
+
+    def _normalize_search_text(self, text: str) -> str:
+        """Normalize search text for lightweight result cleanup."""
+        return re.sub(r'[^a-z0-9]+', ' ', (text or '').lower()).strip()
+
+    def _search_result_penalty(self, query: str, title: str, kind: Optional[str]) -> int:
+        """Return a penalty for obviously noisy derivative titles."""
+        normalized_query = self._normalize_search_text(query)
+        normalized_title = self._normalize_search_text(title)
+
+        if not normalized_query or not normalized_title or normalized_query == normalized_title:
+            return 0
+
+        penalty = 0
+        normalized_kind = (kind or "").lower()
+
+        if normalized_kind in {"podcastepisode", "podcastseries", "tvepisode", "video", "videogame"}:
+            penalty += 200
+
+        if normalized_title.startswith(normalized_query):
+            query_tokens = normalized_query.split()
+            title_tokens = normalized_title.split()
+            suffix_tokens = set(title_tokens[len(query_tokens):])
+
+            if "roblox" in suffix_tokens:
+                penalty += 150
+
+            if suffix_tokens & self.NOISY_SEARCH_SUFFIX_TERMS:
+                penalty += 150
+
+                if ":" in title or " - " in title:
+                    penalty += 50
+
+        return penalty
+
+    def _rank_search_results(self, query: str, titles: List[Any]) -> List[Any]:
+        """Preserve imdbinfo relevance order while demoting noisy derivatives."""
+        indexed_titles = list(enumerate(titles))
+        indexed_titles.sort(
+            key=lambda item: (
+                self._search_result_penalty(
+                    query,
+                    getattr(item[1], "title", "") or getattr(item[1], "title_localized", ""),
+                    getattr(item[1], "kind", None),
+                ),
+                item[0],
+            )
+        )
+        return [movie for _, movie in indexed_titles]
     
     def _sync_get_movie(self, imdb_id: str) -> Optional[Dict[str, Any]]:
         """Synchronous IMDB movie details (runs in thread pool)."""
