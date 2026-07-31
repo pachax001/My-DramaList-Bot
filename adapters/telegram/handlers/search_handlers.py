@@ -6,9 +6,10 @@ import uuid
 from pyrogram import Client
 from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ParseMode
-from pyrogram.errors import WebpageMediaEmpty
+from pyrogram.errors import MessageIdInvalid, WebpageMediaEmpty
 from adapters.imdb import imdb_adapter
 from adapters.mydramalist import mydramalist_adapter
+from adapters.telegram.caption_utils import trim_media_caption
 from domain.services import template_service
 from infra.db import mongo_client
 from infra.logging import get_logger, set_correlation_id
@@ -17,6 +18,18 @@ from infra.config import settings
 import os
 import requests
 logger = get_logger(__name__)
+
+
+async def _report_processing_failure(
+    message: Message,
+    processing_msg: Message,
+    error_text: str,
+) -> None:
+    """Report a failure even if the temporary processing message is gone."""
+    try:
+        await processing_msg.edit_text(error_text)
+    except MessageIdInvalid:
+        await message.reply_text(error_text)
 
 
 def extract_url_from_text(text: str) -> tuple[None, None] | tuple[str, str]:
@@ -180,18 +193,16 @@ async def _process_mdl_url_direct(client: Client, message: Message, url: str, us
         # Send details with or without poster
         if poster_url and poster_url.strip():
             try:
-            # Delete processing message first
-                await processing_msg.delete()
                 # Send as photo with caption
                 await message.reply_photo(
                     photo=poster_url,
-                    caption=caption,
+                    caption=trim_media_caption(caption),
                     reply_markup=markup,
                     parse_mode=ParseMode.HTML
                 )
+                await processing_msg.delete()
             except WebpageMediaEmpty:
                 try:
-                    await processing_msg.delete()
                     img_path = f"temp_poster_{user_id}_{slug.replace("-", "_")}.jpg"
                     r = requests.get(poster_url, timeout=10)
                     if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
@@ -199,13 +210,17 @@ async def _process_mdl_url_direct(client: Client, message: Message, url: str, us
                             f.write(r.content)
                     await message.reply_photo(
                         photo=img_path,
-                        caption=caption,
+                        caption=trim_media_caption(caption),
                         reply_markup=markup,
                         parse_mode=ParseMode.HTML
                     )
+                    await processing_msg.delete()
 
                     # --- Remove file ---
-                    os.remove(img_path)
+                    try:
+                        os.remove(img_path)
+                    except OSError as cleanup_error:
+                        logger.warning(f"Failed to remove temporary poster {img_path}: {cleanup_error}")
                 except Exception as e:
                     logger.error(f"Error in poster URL: {e}")
                     await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
@@ -217,7 +232,11 @@ async def _process_mdl_url_direct(client: Client, message: Message, url: str, us
         
     except Exception as e:
         logger.error(f"Error in MDL URL processing with /mdl: {e}")
-        await processing_msg.edit_text("❌ Failed to process URL. Please try again later.")
+        await _report_processing_failure(
+            message,
+            processing_msg,
+            "❌ Failed to process URL. Please try again later.",
+        )
 
 
 async def search_imdb(client: Client, message: Message) -> None:
@@ -351,22 +370,25 @@ async def _process_imdb_url_direct(client: Client, message: Message, url: str, u
         
         # Send details with or without poster
         if poster_url and poster_url != "N/A" and poster_url.strip():
-            # Delete processing message first
-            await processing_msg.delete()
             # Send as photo with caption
             await message.reply_photo(
                 photo=poster_url,
-                caption=caption,
+                caption=trim_media_caption(caption),
                 reply_markup=markup,
                 parse_mode=ParseMode.HTML
             )
+            await processing_msg.delete()
         else:
             # Edit processing message to show details
             await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
         
     except Exception as e:
         logger.error(f"Error in IMDB URL processing with /imdb: {e}")
-        await processing_msg.edit_text("❌ Failed to process URL. Please try again later.")
+        await _report_processing_failure(
+            message,
+            processing_msg,
+            "❌ Failed to process URL. Please try again later.",
+        )
 
 
 async def drama_details_callback(client: Client, callback_query: CallbackQuery) -> None:
@@ -410,7 +432,7 @@ async def drama_details_callback(client: Client, callback_query: CallbackQuery) 
                 await client.send_photo(
                     chat_id=callback_query.message.chat.id,
                     photo=poster_url,
-                    caption=caption,
+                    caption=trim_media_caption(caption),
                     reply_markup=markup,
                     parse_mode=ParseMode.HTML
                 )
@@ -424,13 +446,16 @@ async def drama_details_callback(client: Client, callback_query: CallbackQuery) 
                     await client.send_photo(
                         chat_id=callback_query.message.chat.id,
                         photo=img_path,
-                        caption=caption,
+                        caption=trim_media_caption(caption),
                         reply_markup=markup,
                         parse_mode=ParseMode.HTML
                     )
 
                     # --- Remove file ---
-                    os.remove(img_path)
+                    try:
+                        os.remove(img_path)
+                    except OSError as cleanup_error:
+                        logger.warning(f"Failed to remove temporary poster {img_path}: {cleanup_error}")
                 except Exception as e:
                     logger.warning(f"Failed to send poster photo to {poster_url}: {e}")
                     await client.send_message(
@@ -493,7 +518,7 @@ async def imdb_details_callback(client: Client, callback_query: CallbackQuery) -
             await client.send_photo(
                 chat_id=callback_query.message.chat.id,
                 photo=poster_url,
-                caption=caption,
+                caption=trim_media_caption(caption),
                 reply_markup=markup,
                 parse_mode=ParseMode.HTML
             )
@@ -619,18 +644,16 @@ async def handle_drama_url(client: Client, message: Message) -> None:
         # Send details with or without poster
         if poster_url and poster_url.strip():
             try:
-            # Delete processing message first
-                await processing_msg.delete()
                 # Send as photo with caption
                 await message.reply_photo(
                     photo=poster_url,
-                    caption=caption,
+                    caption=trim_media_caption(caption),
                     reply_markup=markup,
                     parse_mode=ParseMode.HTML
                 )
+                await processing_msg.delete()
             except WebpageMediaEmpty:
                 try:
-                    await processing_msg.delete()
                     img_path = f"temp_poster_{user_id}_{slug.replace("-","_")}.jpg"
                     r = requests.get(poster_url, timeout=10)
                     if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
@@ -638,13 +661,17 @@ async def handle_drama_url(client: Client, message: Message) -> None:
                             f.write(r.content)
                     await message.reply_photo(
                         photo=img_path,
-                        caption=caption,
+                        caption=trim_media_caption(caption),
                         reply_markup=markup,
                         parse_mode=ParseMode.HTML
                     )
+                    await processing_msg.delete()
 
                     # --- Remove file ---
-                    os.remove(img_path)
+                    try:
+                        os.remove(img_path)
+                    except OSError as cleanup_error:
+                        logger.warning(f"Failed to remove temporary poster {img_path}: {cleanup_error}")
                 except Exception as e:
                     logger.warning(f"Failed to send poster photo to {poster_url}: {e}")
                     await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
@@ -657,7 +684,11 @@ async def handle_drama_url(client: Client, message: Message) -> None:
         
     except Exception as e:
         logger.error(f"Error in MDL URL processing: {e}")
-        await processing_msg.edit_text("❌ Failed to process URL. Please try again later.")
+        await _report_processing_failure(
+            message,
+            processing_msg,
+            "❌ Failed to process URL. Please try again later.",
+        )
 
 
 async def handle_imdb_url(client: Client, message: Message) -> None:
@@ -744,22 +775,25 @@ async def handle_imdb_url(client: Client, message: Message) -> None:
         
         # Send details with or without poster
         if poster_url and poster_url != "N/A" and poster_url.strip():
-            # Delete processing message first
-            await processing_msg.delete()
             # Send as photo with caption
             await message.reply_photo(
                 photo=poster_url,
-                caption=caption,
+                caption=trim_media_caption(caption),
                 reply_markup=markup,
                 parse_mode=ParseMode.HTML
             )
+            await processing_msg.delete()
         else:
             # Edit processing message to show details
             await processing_msg.edit_text(caption, reply_markup=markup, parse_mode=ParseMode.HTML)
         
     except Exception as e:
         logger.error(f"Error in IMDB URL processing: {e}")
-        await processing_msg.edit_text("❌ Failed to process URL. Please try again later.")
+        await _report_processing_failure(
+            message,
+            processing_msg,
+            "❌ Failed to process URL. Please try again later.",
+        )
 
 
 
